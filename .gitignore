@@ -1,0 +1,24 @@
+node_modules/
+dist/
+out/
+vault/
+*.log
+.DS_Store
+Thumbs.db
+
+# nigdy nie commitujemy assetów klienta
+*.ogg
+*.dat
+client.exe
+packages/
+
+# lokalna kopia klienta do testow
+testclient/
+
+# artefakty buildu
+dist/
+build/icon.ico
+build/icon.icns
+
+# zrzuty do dokumentacji sa wersjonowane
+!docs/img/

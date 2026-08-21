@@ -1,0 +1,91 @@
+name: CI
+
+# Kazdy PR (do develop i do master) oraz kazdy push na develop.
+# Master dostaje osobny workflow release'owy, ktory tez odpala testy przed buildem.
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Testy (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # windows-latest to platforma docelowa; ubuntu pilnuje, zeby nic nie
+        # zaszyto na sztywno pod Windows (sciezki, separatory) - przyda sie,
+        # gdy dojdzie build dla Linuksa.
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalacja ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --no-progress -y
+
+      - name: Instalacja ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Sprawdzenie ffmpeg
+        run: ffmpeg -hide_banner -encoders | grep libvorbis
+        shell: bash
+
+      - run: npm ci
+
+      # VERSION.md jest zrodlem prawdy; package.json ma go tylko powtarzac.
+      - name: Zgodnosc VERSION.md i package.json
+        run: npm run version:check
+
+      # Ikona jest generowana kodem - build musi dac bajt w bajt to, co jest w repo.
+      # tests/icon.test.js to sprawdza, ale generujemy wczesniej, zeby blad byl czytelny.
+      - name: Generowanie ikony
+        run: npm run icon
+
+      - name: Czy build/icon.png jest aktualny
+        run: git diff --exit-code -- build/icon.png
+        shell: bash
+
+      - run: npm test
+
+  package:
+    name: Probny build instalatora
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run icon
+
+      # Bez publikacji - sprawdzamy tylko, ze paczka sie sklada.
+      - name: electron-builder
+        run: npx electron-builder --win --publish never
+
+      - name: Podglad artefaktow
+        run: Get-ChildItem dist -Filter *.exe | Select-Object Name, Length
+        shell: pwsh

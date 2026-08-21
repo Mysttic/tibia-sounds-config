@@ -1,0 +1,39 @@
+{
+  "name": "tibia-sounds-config",
+  "productName": "Tibia Sounds Config",
+  "version": "1.6.1",
+  "private": true,
+  "description": "Podglad i podmiana dzwiekow klienta Tibii",
+  "author": "Mysttic",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mysttic/tibia-sounds-config.git"
+  },
+  "main": "electron/main.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"tests/*.test.js\"",
+    "test:watch": "node --test --watch \"tests/*.test.js\"",
+    "icon": "node tools/make-icon.js",
+    "version:print": "node tools/version.js",
+    "version:sync": "node tools/version.js --sync",
+    "version:check": "node tools/version.js --check",
+    "fixture": "node tools/make-fixture.js",
+    "prepack:app": "npm run icon",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux",
+    "dist:mac": "electron-builder --mac",
+    "verify": "npm run version:check && npm run icon && npm test"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  }
+}

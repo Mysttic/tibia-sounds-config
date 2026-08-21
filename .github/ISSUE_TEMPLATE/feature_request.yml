@@ -1,0 +1,34 @@
+name: Propozycja zmiany
+description: Pomysl na nowa funkcje albo usprawnienie
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Czego brakuje albo co jest niewygodne. Opisz sytuacje, nie od razu rozwiazanie.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proponowane rozwiazanie
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Rozwazane alternatywy
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Czego dotyczy
+      options:
+        - label: odczyt banku dzwiekow / nazwy akcji
+        - label: interfejs (tabela, filtry, odtwarzanie)
+        - label: podmiana / konwersja audio
+        - label: profil, vault, kopie oryginalow
+        - label: build i wydania

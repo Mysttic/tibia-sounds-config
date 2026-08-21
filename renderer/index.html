@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; media-src tsound:; img-src 'self' data:;">
+  <title>Tibia Sounds Config</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="row">
+    <button id="btnClient" class="context" title="Kliknij, zeby wskazac inna instalacje Tibii">
+      <span class="ico">&#128193;</span><span id="clientLabel">nie wybrano klienta</span>
+    </button>
+    <span class="spacer"></span>
+    <button id="btnMenu" class="icon" title="Wiecej" aria-haspopup="true" aria-expanded="false">&#8943;</button>
+  </div>
+
+  <div class="row">
+    <input type="search" id="q" placeholder="Szukaj dzwieku: depot, spell, smok&hellip;">
+    <select id="cat"></select>
+    <span class="chips" id="chips"></span>
+    <span class="spacer"></span>
+    <label class="vol" title="Glosnosc odsluchu">
+      &#128266;<input type="range" id="vol" min="0" max="1" step="0.05" value="0.7">
+    </label>
+  </div>
+
+  <div class="bar" id="bar" hidden><i id="barFill"></i></div>
+</header>
+
+<div id="banners"></div>
+
+<main>
+  <table id="grid">
+    <colgroup id="cg"></colgroup>
+    <thead><tr id="hr"></tr></thead>
+    <tbody id="tb"></tbody>
+  </table>
+  <div class="empty" id="empty" hidden></div>
+</main>
+
+<footer>
+  <span class="msg" id="msg" role="status" aria-live="polite"></span>
+</footer>
+
+<div class="menu" id="menu" hidden role="menu">
+  <button data-m="refresh" role="menuitem">Odswiez teraz <kbd>F5</kbd></button>
+  <hr>
+  <button data-m="export" role="menuitem">Zapisz kopie moich podmianek&hellip;</button>
+  <button data-m="import" role="menuitem">Wczytaj kopie&hellip;</button>
+  <hr>
+  <div class="mrow">
+    <span>Wyglad</span>
+    <span class="seg" role="radiogroup" aria-label="Wyglad">
+      <button data-m="theme:system" role="radio">Auto</button>
+      <button data-m="theme:light" role="radio">Jasny</button>
+      <button data-m="theme:dark" role="radio">Ciemny</button>
+    </span>
+  </div>
+  <hr>
+  <button data-m="tech" role="menuitem">Pokaz szczegoly techniczne</button>
+  <button data-m="cols" role="menuitem">Zresetuj szerokosci kolumn</button>
+  <hr>
+  <button data-m="presets" role="menuitem">Zestawy dzwiekow&hellip;</button>
+  <hr>
+  <button data-m="vault" role="menuitem">Otworz katalog kopii (diagnostyka)</button>
+  <button data-m="about" role="menuitem">O programie</button>
+</div>
+
+<div class="menu" id="rowMenu" hidden role="menu">
+  <button data-r="playOrig" role="menuitem">Odtworz oryginal (A/B)</button>
+  <button data-r="reset" role="menuitem">Przywroc oryginal</button>
+  <button data-r="mute" role="menuitem">Wycisz</button>
+  <hr>
+  <button data-r="reveal" role="menuitem">Pokaz plik w Eksploratorze</button>
+  <button data-r="copyId" role="menuitem">Kopiuj id dzwieku</button>
+</div>
+
+<div class="overlay" id="replace" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="replaceTitle">
+    <div class="row head">
+      <h2 id="replaceTitle">Podmien <span id="replaceTarget"></span></h2>
+      <span class="spacer"></span>
+      <button id="btnSilence" title="Zastap ten dzwiek cisza">&#128263; Wycisz</button>
+      <button id="btnReplaceClose" class="icon" title="Zamknij (Esc)">&#10005;</button>
+    </div>
+
+    <div class="tabs" id="srcTabs" role="tablist">
+      <button data-tab="library" role="tab">Moje dzwieki <span id="libCount"></span></button>
+      <button data-tab="generate" role="tab">Wygeneruj</button>
+      <button data-tab="web" role="tab">Znajdz w sieci</button>
+      <button data-tab="file" role="tab">Z dysku</button>
+    </div>
+
+    <div class="panel" data-panel="library" hidden>
+      <div class="hint">Twoje dzwieki: wygenerowane (<b>AI</b>) i pliki wskazane
+        z dysku (<b>z dysku</b>). Zostaja tutaj, wiec tego samego mozesz uzyc pod dowolny
+        wpis, takze po aktualizacji Tibii.</div>
+      <div id="libList" class="results"></div>
+    </div>
+
+    <div class="panel" data-panel="generate" hidden>
+      <div class="row">
+        <select id="genProvider"></select>
+        <input type="search" id="genPrompt" autocomplete="off"
+               placeholder="opisz dzwiek po angielsku">
+        <button id="btnGenerate" class="primary">Wygeneruj</button>
+      </div>
+      <div class="hint" id="genInfo"></div>
+
+      <div class="row genopts" id="genOpts">
+        <label>dlugosc <input type="number" id="genDur" min="0.5" max="30" step="0.5" placeholder="auto"></label>
+        <label><input type="checkbox" id="genLoop"> zapetlony</label>
+      </div>
+
+      <div class="row" id="genKeyRow">
+        <input type="password" id="genKey" placeholder="wklej tu swoj klucz API">
+        <button id="btnGenSaveKey">Zapisz klucz</button>
+        <button id="btnGenClearKey" hidden>Usun klucz</button>
+      </div>
+      <div class="hint" id="genKeyHint"></div>
+
+      <div id="genResult" class="results"></div>
+    </div>
+
+    <div class="panel" data-panel="web" hidden>
+      <div class="row">
+        <select id="webProvider"></select>
+        <input type="search" id="webQuery" placeholder="czego szukasz, np. big explosion">
+        <button id="btnWebSearch" class="primary">Szukaj</button>
+      </div>
+      <div class="hint" id="webProviderInfo"></div>
+      <div id="webResults" class="results"></div>
+
+      <div class="row" style="margin-top:14px">
+        <input type="url" id="webUrl" placeholder="albo wklej bezposredni link do pliku (https://&hellip;)">
+        <button id="btnWebUrl">Uzyj linku</button>
+      </div>
+      <div class="hint">Wbudowane zrodla daja wylacznie pliki CC0. Za wlasne zrodla
+        i wklejane linki odpowiadasz sam.</div>
+    </div>
+
+    <div class="panel" data-panel="file" hidden>
+      <div class="row">
+        <button id="btnFromDisk" class="primary">Wybierz plik&hellip;</button>
+      </div>
+      <div class="hint">Obslugiwane formaty: mp3, wav, flac, m4a, ogg, opus, aac, wma.
+        Plik mozesz te&#380; przeciagnac prosto na wiersz w liscie, bez otwierania tego okna.</div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="presets" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="presetsTitle">
+    <div class="row head">
+      <h2 id="presetsTitle">Zestawy dzwiekow</h2>
+      <span class="spacer"></span>
+      <button id="btnPresetSave">Zapisz obecny uklad</button>
+      <button id="btnPresetsClose" class="icon" title="Zamknij (Esc)">&#10005;</button>
+    </div>
+
+    <div class="hint">Zestaw to <b>reguly, nie pliki</b>: mowi, co ma byc wyciszone, co
+      zostawione oryginalne, a co podmienione na dzwiek z Twojej biblioteki. Wazy kilkaset
+      bajtow i nie zawiera audio, w przeciwienstwie do eksportu profilu, ktory wozi
+      same dzwieki.</div>
+
+    <div id="presetList" class="results"></div>
+  </div>
+</div>
+
+<div class="overlay" id="warning" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="warnTitle">
+    <h2 id="warnTitle">Zanim zaczniesz</h2>
+    <p>
+      Ta aplikacja nadpisuje wylacznie pliki <code>.ogg</code> w katalogu <code>sounds/</code>
+      wskazanego klienta Tibii. To zmiana czysto kosmetyczna: nie rusza pliku wykonywalnego,
+      <code>.dat</code> ani <code>assets.json</code>, nie wstrzykuje kodu, nie czyta pamieci
+      gry i <b>nie daje zadnej przewagi</b> nad innymi graczami. Zmienia sie tylko to,
+      co slychac.
+    </p>
+    <p>
+      Klient Tibii jest wspierany przez CipSoft wylacznie w stanie oryginalnym, wiec
+      modyfikacja jego plikow, takze taka, odbywa sie na Twoja odpowiedzialnosc.
+      Przed kazda podmiana odkladamy oryginal do kopii zapasowej, wiec zawsze mozna wrocic.
+      Po aktualizacji Tibii podmianki zostana nadpisane przez launcher i to normalne,
+      a aplikacja zaproponuje wtedy przywrocenie ich jednym klikni&#281;ciem.
+    </p>
+    <div class="buttons">
+      <button id="btnWarnClose" class="primary">Rozumiem</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="about" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle">Tibia Sounds Config</h2>
+    <p id="aboutBody"></p>
+    <div class="buttons">
+      <button id="btnAboutClose" class="primary">Zamknij</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

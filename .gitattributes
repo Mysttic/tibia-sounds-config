@@ -1,0 +1,10 @@
+# Jednolite koncowki linii w repo - CI chodzi na Windows i Linuksie.
+* text=auto eol=lf
+
+# Binaria - bez normalizacji
+*.png binary
+*.ogg binary
+*.dat binary
+*.ico binary
+*.icns binary
+*.exe binary

@@ -1,0 +1,231 @@
+name: Release
+
+# Wydanie leci automatycznie po merge PR-a develop -> master.
+# Numer wersji pochodzi z VERSION.md (package.json tylko go powtarza - zgodnosc
+# sprawdza `npm run version:check`). Jesli tag v<wersja> juz istnieje, workflow
+# konczy sie bez publikacji - dzieki temu merge bez podbicia wersji (np. poprawka
+# dokumentacji) niczego nie nadpisuje ani nie wywala buildu.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Wydaj nawet jesli tag juz istnieje (nadpisze release)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Czy jest co wydawac
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Rozjazd VERSION.md <-> package.json zatrzymuje wydanie od razu, zanim
+      # cokolwiek sie zbuduje - inaczej artefakty mialyby zla nazwe.
+      - name: Zgodnosc VERSION.md i package.json
+        run: node tools/version.js --check
+
+      - id: check
+        shell: bash
+        run: |
+          VERSION=$(node tools/version.js)
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Wymuszone wydanie ${TAG}"
+          elif git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tag ${TAG} juz istnieje - pomijam wydanie. Podbij numer w VERSION.md."
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Wydaje ${TAG}"
+          fi
+
+  test:
+    name: Testy przed wydaniem
+    needs: guard
+    if: needs.guard.outputs.should_release == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: choco install ffmpeg --no-progress -y
+      - run: npm ci
+      - run: npm run icon
+      - run: npm test
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: [guard, test]
+    if: needs.guard.outputs.should_release == 'true'
+    runs-on: ${{ matrix.os }}
+    # Potrzebne do wystawienia poswiadczenia pochodzenia (build provenance):
+    # kryptograficznego dowodu, ze dany plik powstal z tego commita w tym repo.
+    # Nie zastepuje podpisu kodu, ale pozwala zweryfikowac plik przez `gh attestation verify`.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # Zeby dolozyc kolejna platforme, wystarczy dopisac wpis tutaj -
+        # electron-builder.yml ma juz gotowe sekcje `linux` i `mac`.
+        include:
+          - os: windows-latest
+            name: windows
+            builder: --win
+            artifacts: |
+              dist/*.exe
+              dist/*.zip
+          # - os: ubuntu-latest
+          #   name: linux
+          #   builder: --linux
+          #   artifacts: |
+          #     dist/*.AppImage
+          #     dist/*.deb
+          # - os: macos-latest
+          #   name: macos
+          #   builder: --mac
+          #   artifacts: |
+          #     dist/*.dmg
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run icon
+
+      - name: electron-builder
+        run: npx electron-builder ${{ matrix.builder }} --publish never
+        env:
+          # Bez certyfikatu - nie probuj szukac go w systemie.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # GitHub nie pozwala zapisywac poswiadczen w prywatnych repozytoriach nalezacych
+      # do konta uzytkownika ("Feature not available for user-owned private repositories").
+      # Krok wlaczy sie sam, gdy repozytorium stanie sie publiczne.
+      - name: Poswiadczenie pochodzenia buildu
+        if: ${{ github.event.repository.private == false }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ matrix.artifacts }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.name }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publikacja GitHub Release
+    needs: [guard, build]
+    if: needs.guard.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Lista artefaktow
+        run: ls -la artifacts
+
+      - name: Tresc wydania z CHANGELOG.md
+        shell: bash
+        run: |
+          node tools/changelog-section.js "${{ needs.guard.outputs.version }}" > RELEASE_NOTES.md
+          {
+            echo ""
+            echo "## Ktory plik pobrac"
+            echo ""
+            echo "| plik | dla kogo |"
+            echo "|---|---|"
+            echo "| \`...-setup.exe\` | instalator: skrot na pulpicie i w menu Start |"
+            echo "| \`...-portable.exe\` | jeden plik, bez instalacji |"
+            echo "| \`...-win-x64.zip\` | to samo co portable, ale w archiwum, gdy przegladarka blokuje pobieranie \`.exe\` |"
+            echo ""
+            echo "Pliki nie sa podpisane certyfikatem wydawcy, wiec Windows pokaze"
+            echo "\"Windows protected your PC\", czyli **More info -> Run anyway**."
+            echo "Zamiast ufac na slowo mozesz sprawdzic, co pobrales:"
+            echo ""
+            echo "**Suma kontrolna** (PowerShell):"
+            echo ""
+            echo '```powershell'
+            echo 'Get-FileHash .\nazwa-pliku.exe -Algorithm SHA256'
+            echo '```'
+            echo ""
+            # Poswiadczenia powstaja tylko dla repozytoriow publicznych - patrz job `build`.
+            if [ "${{ github.event.repository.private }}" = "false" ]; then
+              echo "**Pochodzenie buildu** - dowod, ze plik powstal z tego commita przez GitHub Actions:"
+              echo ""
+              echo '```bash'
+              echo "gh attestation verify nazwa-pliku.exe --repo ${{ github.repository }}"
+              echo '```'
+              echo ""
+            fi
+            echo "### SHA-256"
+            echo ""
+            echo '```'
+            ( cd artifacts && sha256sum * | sort -k2 )
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+            echo "Nieoficjalny projekt fanowski, niezwiazany z CipSoft GmbH ani przez nikogo"
+            echo "z ramienia CipSoftu zatwierdzony. Podmiana dotyczy wylacznie plikow"
+            echo "dzwiekowych: nie zmienia rozgrywki i nie daje przewagi nad innymi graczami."
+            echo "Klient Tibii jest wspierany wylacznie w stanie oryginalnym, wiec modyfikacja"
+            echo "jego plikow odbywa sie na wlasna odpowiedzialnosc."
+          } >> RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - name: Tag i release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.guard.outputs.tag }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "$TAG"
+          git push -f origin "$TAG"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --yes
+          fi
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file RELEASE_NOTES.md \
+            artifacts/*

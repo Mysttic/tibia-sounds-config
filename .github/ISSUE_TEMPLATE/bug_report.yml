@@ -1,0 +1,68 @@
+name: Blad
+description: Cos nie dziala tak jak powinno
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Zanim zglosisz: sprawdz w aplikacji pasek gorny (wersja klienta, zrodlo nazw, status ffmpeg)
+        i stopke (komunikat bledu). Te informacje sa najbardziej przydatne.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: Co sie stalo
+      description: Co zrobiles i co zobaczyles zamiast oczekiwanego wyniku.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Kroki
+      placeholder: |
+        1. Wskazalem klienta w ...
+        2. Kliknalem "Podmien" na dzwieku #677
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Wersja aplikacji
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: client-version
+    attributes:
+      label: Wersja klienta Tibii
+      description: Widoczna w pasku gornym, np. "klient 15.32.df7b29"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: enums
+    attributes:
+      label: Zrodlo nazw akcji
+      options:
+        - nazwy z client.exe
+        - nazwy ze snapshotu
+        - nie wiem
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Komunikat bledu
+      description: Tresc ze stopki aplikacji albo z konsoli.
+      render: text
+
+  - type: input
+    id: os
+    attributes:
+      label: System
+      placeholder: "Windows 11 26200"

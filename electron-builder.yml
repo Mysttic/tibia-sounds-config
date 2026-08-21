@@ -1,0 +1,95 @@
+appId: com.mysttic.tibia-sounds-config
+productName: Tibia Sounds Config
+copyright: Copyright (c) 2026 Mysttic
+
+directories:
+  output: dist
+  buildResources: build
+
+# Do paczki wchodzi tylko to, czego aplikacja faktycznie potrzebuje w runtime.
+# tests/, tools/, docs/, testclient/ i vault/ zostaja poza instalatorem.
+files:
+  - electron/**/*
+  - renderer/**/*
+  - data/**/*
+  - package.json
+  # zrodlo numeru wersji pokazywanego na pasku i w tytule okna
+  - VERSION.md
+  - '!**/*.map'
+
+asar: true
+
+# Aplikacja nie ma zaleznosci runtime (tylko devDependencies), wiec nie ma
+# czego przebudowywac natywnie.
+npmRebuild: false
+
+# --- Windows ---------------------------------------------------------------
+# Jedyna platforma budowana obecnie w CI. Ikona powstaje z build/icon.png
+# (generowanej przez `npm run icon`), electron-builder sam robi z niej .ico.
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+    # ZIP jako alternatywa dla osob, ktorym przegladarka blokuje pobieranie .exe -
+    # archiwum przechodzi przez filtry Safe Browsing lagodniej niz surowy plik
+    # wykonywalny. W srodku jest ta sama, rozpakowana aplikacja.
+    - target: zip
+      arch: [x64]
+  icon: build/icon.png
+  # Domyslna nazwa artefaktu - uzywa jej target `zip`.
+  # `nsis` i `portable` maja wlasne, ponizej.
+  artifactName: ${name}-${version}-win-${arch}.${ext}
+  # start.bat trafia obok pliku .exe w katalogu instalacji - wykrywa, gdzie lezy,
+  # i odpala aplikacje (a w katalogu zrodel: npm start).
+  extraFiles:
+    - from: start.bat
+      to: start.bat
+
+nsis:
+  artifactName: ${name}-${version}-win-${arch}-setup.${ext}
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+  shortcutName: Tibia Sounds Config
+
+portable:
+  artifactName: ${name}-${version}-win-${arch}-portable.${ext}
+
+# --- Linux -----------------------------------------------------------------
+# Gotowe do wlaczenia: dodaj `ubuntu-latest` do macierzy w .github/workflows/release.yml.
+# clientPaths.js ma juz sciezki dla ~/.local/share/Tibia i ~/Tibia.
+linux:
+  target:
+    - AppImage
+    - deb
+  icon: build/icon.png
+  category: AudioVideo
+  synopsis: Podglad i podmiana dzwiekow klienta Tibii
+  desktop:
+    StartupWMClass: tibia-sounds-config
+
+# --- macOS -----------------------------------------------------------------
+# Gotowe do wlaczenia: dodaj `macos-latest` do macierzy w release.yml.
+# Bez certyfikatu Apple Developer buildy nie beda podpisane ani notaryzowane,
+# wiec Gatekeeper pokaze ostrzezenie - opisane w docs/RELEASING.md.
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  icon: build/icon.png
+  category: public.app-category.utilities
+  darkModeSupport: true
+
+dmg:
+  artifactName: ${name}-${version}-mac-${arch}.${ext}
+
+# Publikacja idzie przez GitHub Release tworzony w workflowie, nie przez
+# auto-publish electron-buildera - dzieki temu artefakty ze wszystkich
+# platform ladują w jednym release.
+publish: null

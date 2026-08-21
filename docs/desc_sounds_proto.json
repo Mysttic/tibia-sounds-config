@@ -1,0 +1,226 @@
+{
+ "name": "sounds.proto",
+ "package": "tibia.protobuf.sound",
+ "deps": [
+  "sounds-common.proto"
+ ],
+ "messages": [
+  {
+   "name": "Sounds",
+   "fields": [
+    {
+     "name": "sound",
+     "number": 1,
+     "label": "repeated",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.Sound"
+    },
+    {
+     "name": "numeric_sound_effect",
+     "number": 2,
+     "label": "repeated",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.NumericSoundEffect"
+    },
+    {
+     "name": "ambience_stream",
+     "number": 3,
+     "label": "repeated",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.AmbienceStream"
+    },
+    {
+     "name": "ambience_object_stream",
+     "number": 4,
+     "label": "repeated",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.AmbienceObjectStream"
+    },
+    {
+     "name": "music_template",
+     "number": 5,
+     "label": "repeated",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.MusicTemplate"
+    }
+   ],
+   "nested": [],
+   "enums": [],
+   "oneofs": []
+  },
+  {
+   "name": "Sound",
+   "fields": [
+    {
+     "name": "id",
+     "number": 1,
+     "label": "optional",
+     "type": "uint32"
+    },
+    {
+     "name": "filename",
+     "number": 2,
+     "label": "optional",
+     "type": "string"
+    },
+    {
+     "name": "original_filename",
+     "number": 3,
+     "label": "optional",
+     "type": "string"
+    },
+    {
+     "name": "is_stream",
+     "number": 4,
+     "label": "optional",
+     "type": "bool"
+    }
+   ],
+   "nested": [],
+   "enums": [],
+   "oneofs": []
+  },
+  {
+   "name": "NumericSoundEffect",
+   "fields": [
+    {
+     "name": "id",
+     "number": 1,
+     "label": "optional",
+     "type": "uint32"
+    },
+    {
+     "name": "numeric_sound_type",
+     "number": 2,
+     "label": "optional",
+     "type": "enum",
+     "type_name": ".tibia.protobuf.sound.ENumericSoundType"
+    },
+    {
+     "name": "random_pitch",
+     "number": 3,
+     "label": "optional",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.MinMaxFloat"
+    },
+    {
+     "name": "random_volume",
+     "number": 4,
+     "label": "optional",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.MinMaxFloat"
+    },
+    {
+     "name": "simple_sound_effect",
+     "number": 5,
+     "label": "optional",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.SimpleSoundEffect",
+     "oneof_index": 0
+    },
+    {
+     "name": "random_sound_effect",
+     "number": 6,
+     "label": "optional",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.RandomSoundEffect",
+     "oneof_index": 0
+    }
+   ],
+   "nested": [],
+   "enums": [],
+   "oneofs": [
+    "numericsoundeffect_oneof"
+   ]
+  },
+  {
+   "name": "AmbienceStream",
+   "fields": [
+    {
+     "name": "id",
+     "number": 1,
+     "label": "optional",
+     "type": "uint32"
+    },
+    {
+     "name": "looping_sound_id",
+     "number": 2,
+     "label": "optional",
+     "type": "uint32"
+    },
+    {
+     "name": "delayed_effects",
+     "number": 3,
+     "label": "repeated",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.DelayedSoundEffect"
+    }
+   ],
+   "nested": [],
+   "enums": [],
+   "oneofs": []
+  },
+  {
+   "name": "AmbienceObjectStream",
+   "fields": [
+    {
+     "name": "id",
+     "number": 1,
+     "label": "optional",
+     "type": "uint32"
+    },
+    {
+     "name": "counted_appearance_types",
+     "number": 2,
+     "label": "repeated",
+     "type": "uint32"
+    },
+    {
+     "name": "sound_effects",
+     "number": 3,
+     "label": "repeated",
+     "type": "message",
+     "type_name": ".tibia.protobuf.sound.AppearanceTypesCountSoundEffect"
+    },
+    {
+     "name": "max_sound_distance",
+     "number": 4,
+     "label": "optional",
+     "type": "uint32"
+    }
+   ],
+   "nested": [],
+   "enums": [],
+   "oneofs": []
+  },
+  {
+   "name": "MusicTemplate",
+   "fields": [
+    {
+     "name": "id",
+     "number": 1,
+     "label": "optional",
+     "type": "uint32"
+    },
+    {
+     "name": "sound_id",
+     "number": 2,
+     "label": "optional",
+     "type": "uint32"
+    },
+    {
+     "name": "music_type",
+     "number": 3,
+     "label": "optional",
+     "type": "enum",
+     "type_name": ".tibia.protobuf.sound.EMusicType"
+    }
+   ],
+   "nested": [],
+   "enums": [],
+   "oneofs": []
+  }
+ ],
+ "enums": [],
+ "syntax": null
+}
