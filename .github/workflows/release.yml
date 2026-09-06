@@ -168,30 +168,30 @@ jobs:
           node tools/changelog-section.js "${{ needs.guard.outputs.version }}" > RELEASE_NOTES.md
           {
             echo ""
-            echo "## Ktory plik pobrac"
+            echo "## Which file to download"
             echo ""
-            echo "| plik | dla kogo |"
+            echo "| file | for whom |"
             echo "|---|---|"
-            echo "| \`...-setup.exe\` | instalator: skrot na pulpicie i w menu Start |"
-            echo "| \`...-portable.exe\` | jeden plik, bez instalacji |"
-            echo "| \`...-win-x64.zip\` | to samo co portable, ale w archiwum, gdy przegladarka blokuje pobieranie \`.exe\` |"
+            echo "| \`...-setup.exe\` | installer: shortcuts on the desktop and in the Start menu |"
+            echo "| \`...-portable.exe\` | a single file, no installation |"
+            echo "| \`...-win-x64.zip\` | the same as portable, in an archive, when your browser blocks \`.exe\` downloads |"
             echo ""
-            echo "Pliki nie sa podpisane certyfikatem wydawcy, wiec Windows pokaze"
-            echo "\"Windows protected your PC\", czyli **More info -> Run anyway**."
-            echo "Zamiast ufac na slowo mozesz sprawdzic, co pobrales:"
+            echo "The files are not signed with a publisher certificate, so Windows will show"
+            echo "\"Windows protected your PC\", meaning **More info -> Run anyway**."
+            echo "Instead of taking that on faith, you can check what you downloaded:"
             echo ""
-            echo "**Suma kontrolna** (PowerShell):"
+            echo "**Checksum** (PowerShell):"
             echo ""
             echo '```powershell'
-            echo 'Get-FileHash .\nazwa-pliku.exe -Algorithm SHA256'
+            echo 'Get-FileHash .\file-name.exe -Algorithm SHA256'
             echo '```'
             echo ""
-            # Poswiadczenia powstaja tylko dla repozytoriow publicznych - patrz job `build`.
+            # Poswiadczenia powstaja tylko dla repozytoriow publicznych, patrz job `build`.
             if [ "${{ github.event.repository.private }}" = "false" ]; then
-              echo "**Pochodzenie buildu** - dowod, ze plik powstal z tego commita przez GitHub Actions:"
+              echo "**Build provenance**, proof that the file was built from this commit by GitHub Actions:"
               echo ""
               echo '```bash'
-              echo "gh attestation verify nazwa-pliku.exe --repo ${{ github.repository }}"
+              echo "gh attestation verify file-name.exe --repo ${{ github.repository }}"
               echo '```'
               echo ""
             fi
@@ -203,11 +203,12 @@ jobs:
             echo ""
             echo "---"
             echo ""
-            echo "Nieoficjalny projekt fanowski, niezwiazany z CipSoft GmbH ani przez nikogo"
-            echo "z ramienia CipSoftu zatwierdzony. Podmiana dotyczy wylacznie plikow"
-            echo "dzwiekowych: nie zmienia rozgrywki i nie daje przewagi nad innymi graczami."
-            echo "Klient Tibii jest wspierany wylacznie w stanie oryginalnym, wiec modyfikacja"
-            echo "jego plikow odbywa sie na wlasna odpowiedzialnosc."
+            echo "An unofficial fan project, not affiliated with or endorsed by CipSoft GmbH."
+            echo "The replacement covers sound files only: it does not change gameplay and gives"
+            echo "no advantage over other players. The Tibia client is supported only in its"
+            echo "original state, so modifying its files is done at your own risk."
+            echo ""
+            echo "The application interface is in Polish; the documentation is in English."
           } >> RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 

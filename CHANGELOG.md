@@ -1,435 +1,437 @@
 # Changelog
 
-Format wg [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
-wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+versioning based on [SemVer](https://semver.org/).
 
-Wersja w [`VERSION.md`](VERSION.md) jest zrodlem prawdy dla wydan &mdash; workflow release'owy
-publikuje tag `v<wersja>` po merge do `master`, o ile taki tag jeszcze nie istnieje.
+The version in [`VERSION.md`](VERSION.md) is the source of truth for releases. The release
+workflow publishes the tag `v<version>` after a merge to `master`, provided that tag does
+not exist yet.
 
 ## [Unreleased]
 
+### Changed
+
+- All documentation translated into English: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`,
+  `VERSION.md`, `CHANGELOG.md`, everything under `docs/`, the issue templates and the pull
+  request template. `docs/JAK_TO_DZIALA.md` was renamed to `docs/HOW_IT_WORKS.md` and every
+  link to it updated.
+- The application interface stays in Polish, and so do code and comments, as
+  `CONTRIBUTING.md` requires. Where the documentation refers to a button or a menu entry, it
+  quotes the Polish label so it can be found on screen.
+
 ## [1.7.0] - 2026-09-06
 
-### Dodane
+### Added
 
-- **Aktualizacja z poziomu aplikacji.** Menu &rarr; *Sprawdz aktualizacje* pyta publiczne
-  API GitHuba o najnowsze wydanie. Gdy jest nowsze, aplikacja pobiera instalator,
-  sprawdza jego rozmiar i sume SHA-256 podana przez GitHuba, a po potwierdzeniu
-  uruchamia go w trybie cichym i zamyka sie. Instalator wgrywa sie w to samo miejsce,
-  wiec podmianki, vault i ustawienia zostaja nietkniete.
-- Przelacznik *Sprawdzaj sam* obok tej pozycji, **domyslnie wylaczony**. Po wlaczeniu
-  aplikacja pyta najwyzej raz na dobe, kilka sekund po starcie, a wynik pokazuje paskiem
-  nad lista. Dopoki go nie wlaczysz, aplikacja nie odzywa sie do sieci sama.
-- Wersja przenosna i rozpakowany zip **odmawiaja instalacji** i pokazuja odsylacz do
-  strony wydania: instalator polozylby druga kopie obok, a katalog, z ktorego program
-  chodzi, zostalby stary. Rozpoznajemy je po `PORTABLE_EXECUTABLE_DIR` i po braku
-  deinstalatora obok pliku wykonywalnego.
+- **Updates from inside the app.** The menu entry *Sprawdz aktualizacje* asks GitHub's public
+  API about the newest release. When a newer one exists, the app downloads the installer,
+  checks its size and the SHA-256 sum published by GitHub, and after confirmation runs it
+  silently and exits. The installer goes into the same place, so replacements, the vault and
+  settings stay untouched.
+- A *Sprawdzaj sam* toggle next to that entry, **off by default**. Once enabled, the app asks
+  at most once a day, a few seconds after startup, and shows the result in a bar above the
+  list. Until you enable it, the app never reaches out to the network on its own.
+- The portable build and the unpacked zip **refuse to install** and show a link to the release
+  page: the installer would put a second copy alongside while the directory the program runs
+  from stayed old. They are recognized by `PORTABLE_EXECUTABLE_DIR` and by the absence of an
+  uninstaller next to the executable.
 
-### Zmienione
+### Changed
 
-- `downloadToTemp` raportuje postep, wiec pobieranie instalatora (78 MB) pokazuje pasek
-  zamiast zamrozonego okna. Postep jest liczony w megabajtach i wysylany przy zmianie
-  pelnego MB, zeby nie zasypac IPC dziesiatkami tysiecy komunikatow.
-- Opis sieci w `README.md`, `docs/FAQ.md` i `docs/JAK_TO_DZIALA.md` uzupelniony o dwa
-  nowe adresy (`api.github.com`, `objects.githubusercontent.com`) i o to, kiedy
-  aplikacja moze zapytac o wersje sama.
+- `downloadToTemp` reports progress, so downloading the installer (78 MB) shows a progress bar
+  instead of a frozen window. Progress is counted in megabytes and sent when a full MB
+  changes, so the IPC channel is not flooded with tens of thousands of messages.
+- The network description in `README.md`, `docs/FAQ.md` and `docs/HOW_IT_WORKS.md` gained two
+  new addresses (`api.github.com`, `objects.githubusercontent.com`) and a note about when the
+  app may ask about a version on its own.
 
-### Bezpieczenstwo
+### Security
 
-- Adres pobieranego pliku nie pochodzi z okna aplikacji. Proces glowny pamieta, co
-  znalazl przy ostatnim sprawdzeniu, i tylko to potrafi sciagnac, wiec renderer nie ma
-  jak wskazac dowolnego adresu do pobrania ani dowolnej sciezki do uruchomienia.
-- Strona wydania otwiera sie przez `shell.openExternal` dopiero po sprawdzeniu, ze adres
-  wskazuje to repozytorium. Bez tego jedno przejete pole w odpowiedzi GitHuba otwieraloby
-  uzytkownikowi dowolna strone.
-- Niezgodna suma kontrolna kasuje pobrany plik i przerywa aktualizacje. Dokumentacja
-  mowi wprost, czego ta suma nie dowodzi: przychodzi ta sama odpowiedzia co adres, wiec
-  chroni przed uszkodzonym pobraniem, a nie przed przejeciem konta wydawcy.
+- The address of the downloaded file does not come from the app window. The main process
+  remembers what it found during the last check and can fetch only that, so the renderer has
+  no way to point at an arbitrary download address or an arbitrary path to execute.
+- The release page opens through `shell.openExternal` only after checking that the address
+  points at this repository. Without that, one compromised field in GitHub's response would
+  open an arbitrary page for the user.
+- A mismatched checksum deletes the downloaded file and aborts the update. The documentation
+  says plainly what that sum does not prove: it arrives in the same response as the address,
+  so it protects against a corrupted download, not against a compromised publisher account.
 
 ## [1.6.1] - 2026-08-21
 
-Wydanie porzadkowe przed upublicznieniem repozytorium. Kod aplikacji dziala tak samo,
-zmienily sie teksty i dokumentacja.
+A housekeeping release before the repository was made public. The application code behaves
+the same; the texts and documentation changed.
 
-### Zmienione
+### Changed
 
-- **README skrocony z 242 do 104 linii i uzupelniony o zrzuty ekranu.** Dwanascie pytan
-  FAQ, sekcja "co robi a czego nie robi" oraz opis weryfikacji pobranego pliku
-  przeniesione do nowego `docs/FAQ.md`. Nic nie zniknelo, przestalo tylko blokowac
-  pierwszy ekran.
-- Usuniete myslniki z calej dokumentacji, z tekstow widocznych w aplikacji
-  i z szablonu opisu wydania. Bannery, podpowiedzi w oknie podmiany i etykieta
-  wybranego klienta brzmia inaczej, choc znacza to samo.
-- `SECURITY.md` z opisem, jak zglaszac problemy bezpieczenstwa prywatnie.
+- **README cut from 242 to 104 lines and given screenshots.** Twelve FAQ questions, the
+  "what it does and does not do" section and the description of how to verify a downloaded
+  file moved into the new `docs/FAQ.md`. Nothing disappeared; it simply stopped blocking the
+  first screen.
+- Dashes removed from all the documentation, from the texts visible in the app and from the
+  release description template. Banners, hints in the replacement window and the selected
+  client label read differently while meaning the same.
+- `SECURITY.md` describing how to report security problems privately.
 
-### Uwaga o historii repozytorium
+### A note about the repository history
 
-Repozytorium wystartowalo z czysta historia w chwili upublicznienia, dlatego widac
-w nim jeden commit poczatkowy zamiast rozwoju wersji od 1.0.0. Przebieg prac opisuja
-sekcje ponizej. Wydania starsze niz 1.6.1 nie maja juz stron na GitHubie.
+The repository started with a clean history at the moment it was made public, which is why it
+shows a single initial commit rather than the development from 1.0.0 onwards. The sections
+below describe how the work went. Releases older than 1.6.1 no longer have pages on GitHub.
 
 ## [1.6.0] - 2026-08-17
 
-### Dodane
+### Added
 
-- **Zestawy dzwiekow (presety).** Jednym klikni&#281;ciem wyciszysz cala muzyke, zostawisz
-  tylko odglosy walki albo tylko powiadomienia. Zestaw to **reguly, nie pliki**: mowi,
-  co ma byc wyciszone, co zostawione oryginalne, a co podmienione na dzwiek z Twojej
-  biblioteki. Wazy kilkaset bajtow i nie zawiera audio.
-- Piec zestawow wbudowanych: *Wszystko oryginalne*, *Bez muzyki*, *Bez odglosow otoczenia*,
+- **Sound sets (presets).** One click mutes all the music, keeps only combat sounds, or keeps
+  only notifications. A set is **rules, not files**: it says what should be muted, what should
+  be left original, and what should be replaced with a sound from your library. It weighs a
+  few hundred bytes and contains no audio.
+- Five built-in sets: *Wszystko oryginalne*, *Bez muzyki*, *Bez odglosow otoczenia*,
   *Cicho, tylko walka*, *Tylko powiadomienia*.
-- **Wlasne zestawy** &mdash; przycisk *Zapisz obecny uklad* zamienia biezacy stan katalogu
-  w reguly. Leza w `presets.json`, mozna je nazywac i usuwac. Wbudowanych nie da sie zmienic.
-- Przed zastosowaniem aplikacja pokazuje w wierszu, co dokladnie zrobi (ile wyciszy,
-  ile przywroci, ile zostawi bez zmian) i czeka na potwierdzenie &mdash; zestaw nadpisuje
-  biezacy stan, wiec nie robi tego po cichu.
+- **Custom sets**: the *Zapisz obecny uklad* button turns the current state of the catalog
+  into rules. They live in `presets.json` and can be renamed and deleted. The built-in ones
+  cannot be modified.
+- Before applying one, the app shows in the row exactly what it will do (how many it will
+  mute, restore, or leave unchanged) and waits for confirmation, because a set overwrites the
+  current state and should not do that quietly.
 
-Zasada rozstrzygania: **ostatnia pasujaca regula wygrywa**. Bez tego nie dalo by sie
-zwiezle zapisac "wycisz wszystko oprocz broni". Dzwieki, ktorych nie dotyka zadna regula,
-zostaja nietkniete &mdash; dlatego *Bez muzyki* nie rusza pozostalych podmianek.
+The resolution rule: **the last matching rule wins**. Without it there would be no concise way
+to express "mute everything except weapons". Sounds that no rule touches stay untouched, which
+is why *Bez muzyki* leaves the other replacements alone.
 
-Zmierzone na realnym banku klienta 15.32 (844 dzwieki):
+Measured against the real client 15.32 bank (844 sounds):
 
-| operacja | dzwiekow | czas |
+| operation | sounds | time |
 |---|---|---|
-| *Cicho, tylko walka* | 600 wyciszen | 14,9 s |
-| *Wszystko oryginalne* | 600 przywrocen | 8,4 s |
-| *Bez muzyki* | 25 wyciszen | 0,8 s |
-| ponowny plan tego samego zestawu | 0 do zmiany | 1 ms |
+| *Cicho, tylko walka* | 600 mutes | 14.9 s |
+| *Wszystko oryginalne* | 600 restores | 8.4 s |
+| *Bez muzyki* | 25 mutes | 0.8 s |
+| replanning the same set | 0 to change | 1 ms |
 
-### Zmienione
+### Changed
 
-- Wyciszanie partii nie wola juz ffmpega raz na dzwiek. Cisza o danych parametrach jest
-  zawsze identyczna, wiec powstaje **raz na kombinacje `sampleRate` i liczby kanalow**
-  i jest wspoldzielona. Na 600 wyciszonych dzwiekow powstaja **dwa** pliki ciszy zamiast
-  600, bo tyle jest w banku roznych kombinacji.
-- Profil przy wgrywaniu zestawu zapisywany jest zbiorczo, a nie po kazdym pliku.
-  Blad na jednym dzwieku nie przerywa partii &mdash; trafia na liste pominietych.
-- Wpis profilu zapamietuje `libraryId`, jesli dzwiek pochodzi z biblioteki. Dzieki temu
-  zestaw potrafi odtworzyc uklad i rozpoznac, ze nic sie nie zmienilo.
-- `resetSound` korzysta z wydzielonego `restoreOriginalFile`, ktory nie dotyka profilu
-  &mdash; potrzebne, zeby partia zapisywala profil raz, a nie kilkaset razy.
+- Batch muting no longer calls ffmpeg once per sound. Silence with given parameters is always
+  identical, so it is produced **once per combination of `sampleRate` and channel count** and
+  shared. For 600 muted sounds, **two** silence files are created instead of 600, because that
+  is how many distinct combinations the bank has.
+- The profile is written in one go when applying a set, rather than after every file. An error
+  on a single sound does not abort the batch; it lands on a list of skipped entries.
+- A profile entry remembers `libraryId` when the sound came from the library. That lets a set
+  recreate a layout and recognize that nothing changed.
+- `resetSound` uses the extracted `restoreOriginalFile`, which does not touch the profile.
+  This is needed so a batch writes the profile once instead of several hundred times.
 
-### Bezpieczenstwo
+### Security
 
-- **Sprawdzenie, czy gra jest zamknieta, powtarza sie w trakcie wgrywania zestawu**,
-  a nie tylko przed nim. Przy kilkuset plikach operacja trwa kilkanascie sekund, wiec
-  gra moglaby wstac w polowie. Gdy tak sie stanie, partia jest przerywana, a to,
-  co juz zrobione, zostaje zapisane i zaraportowane.
+- **The check for whether the game is closed repeats during a set being applied**, not only
+  before it. With several hundred files the operation takes a dozen or so seconds, so the game
+  could start halfway through. When that happens the batch is aborted, and whatever was
+  already done is saved and reported.
 
-### Dla programistow
+### For developers
 
-- Nowy modul `electron/lib/presets.js` (model regul, zestawy wbudowane, zapis wlasnych)
-  oraz `applyPreset` w `electron/lib/profile.js`.
-- 19 nowych testow, lacznie 189. Partia jest testowana na syntetycznym kliencie
-  z prawdziwym ffmpegiem &mdash; w tym to, ze plikow ciszy jest tyle, ile kombinacji
-  parametrow, a nie tyle, ile dzwiekow.
+- A new module `electron/lib/presets.js` (rule model, built-in sets, saving custom ones) plus
+  `applyPreset` in `electron/lib/profile.js`.
+- 19 new tests, 189 in total. The batch is tested against a synthetic client with real ffmpeg,
+  including the fact that the number of silence files matches the number of parameter
+  combinations rather than the number of sounds.
 
 ## [1.5.0] - 2026-08-16
 
-Trzy rzeczy: nowa kolorystyka z trybem jasnym, generowanie dzwiekow z opisu
-i biblioteka wlasnych dzwiekow.
+Three things: a new color scheme with a light mode, generating sounds from a description, and
+a library of your own sounds.
 
-### Dodane
+### Added
 
-- **Generowanie dzwieku z opisu.** W oknie podmiany doszla zakladka *Wygeneruj*:
-  wpisujesz po angielsku, czego chcesz, i dostajesz gotowy plik. Dwa wbudowane
-  zrodla &mdash; **ElevenLabs** (efekty dzwiekowe, do 30 s, z opcja zapetlenia)
-  i **OpenRouter** (mowa, do zapowiedzi raidow i komunikatow). Wygenerowany plik
-  przechodzi ta sama sciezke co plik z dysku: kopia oryginalu, konwersja ffmpegiem
-  z zachowaniem `sampleRate` i liczby kanalow oryginalu, zapis atomowy.
-- Funkcja jest **domyslnie nieaktywna** i wymaga wlasnego klucza API uzytkownika.
-  Aplikacja nie ma zadnego wbudowanego klucza i za nic nie placi.
-- **Biblioteka wlasnych dzwiekow** (zakladka *Moje dzwieki*). Trafia tu wszystko,
-  co sam wniosles: dzwieki wygenerowane (oznaczone `AI`) i pliki wskazane z dysku
-  (oznaczone `z dysku`). Kazdy mozna odsluchac, nazwac po swojemu, uzyc pod dowolny
-  wpis i uzyc ponownie pod kolejny &mdash; bez placenia drugi raz za to samo
-  i bez szukania pliku po dysku. Biblioteka jest niezalezna od klienta: przezywa
-  aktualizacje Tibii i wskazanie innej instalacji.
-- **Tryb jasny** i przelacznik wygladu w menu &mdash; jeden wiersz *Wyglad* z opcjami
-  *Auto* (domyslnie, podaza za Windowsem), *Jasny* i *Ciemny*. Zmiana dziala
-  natychmiast i nie zamyka menu, wiec warianty da sie porownac jednym klikni&#281;ciem.
-  Wybor zostaje w `settings.json`, a motyw jest ustawiany jeszcze przed otwarciem
-  okna, wiec start nie mruga drugim kolorem.
+- **Generating a sound from a description.** The replacement window gained a *Wygeneruj* tab:
+  you write in English what you want and get a finished file. Two built-in sources:
+  **ElevenLabs** (sound effects, up to 30 s, with a looping option) and **OpenRouter** (speech,
+  for raid announcements and messages). A generated file follows the same path as a file from
+  disk: a backup of the original, conversion with ffmpeg preserving the original's `sampleRate`
+  and channel count, an atomic write.
+- The feature is **inactive by default** and needs the user's own API key. The app has no
+  built-in key and pays for nothing.
+- **A library of your own sounds** (the *Moje dzwieki* tab). Everything you brought in lands
+  here: generated sounds (marked `AI`) and files picked from disk (marked `z dysku`). Each can
+  be played, given your own name, used for any entry and reused for another, without paying
+  twice for the same thing and without hunting for the file again. The library is independent
+  of the client: it survives Tibia updates and pointing the app at a different installation.
+- **A light theme** and an appearance switch in the menu: one *Wyglad* row with *Auto* (the
+  default, follows Windows), *Jasny* and *Ciemny*. The change is immediate and does not close
+  the menu, so the variants can be compared with a single click. The choice is stored in
+  `settings.json`, and the theme is applied before the window opens, so startup does not flash
+  the other color.
 
-### Zmienione
+### Changed
 
-- **Nowa kolorystyka.** Arkusz stylow stoi na tokenach semantycznych, a nie surowych
-  kolorach: hierarchie buduja poziomy powierzchni zamiast kresek wokol wszystkiego,
-  przyciski stracily ramki, promien zaokraglen wzrosl z 3 do 6&ndash;12 px, a akcent
-  zostal zarezerwowany dla tego, co interaktywne albo aktywne. Wczesniej ten sam
-  zloty kolor mial naglowek, numer wersji, sortowanie i aktywny przycisk naraz.
-  Tlo zostalo odsycone z mocno brazowego `#14100c` do niemal neutralnego `#111010`.
-- **Okno podmiany rozbite na zakladki**: *Moje dzwieki*, *Wygeneruj*, *Znajdz w sieci*,
-  *Z dysku*. Wczesniej cztery zrodla staly jedno pod drugim i okno zajmowalo cala
-  wysokosc ekranu. Teraz widac jedno zrodlo na raz.
-- **Nazwane akcje sortuja sie przed wygenerowanymi etykietami.** 406 z 844 wpisow
-  nie ma prawdziwej nazwy, tylko etykiete typu `ambience_stream #2651` &mdash; przy
-  sortowaniu po nazwie zajmowaly caly pierwszy ekran. Katalog niesie teraz flage
-  `named` i takie wpisy ida na koniec.
-- Wskazanie pliku z dysku (takze przeciagniecie na wiersz) odklada jego kopie
-  w bibliotece, zeby dalo sie go uzyc ponownie. Pliki ponad 25 MB i nie-audio
-  sa pomijane &mdash; sama podmiana dziala jak dotad.
-- Warstwa sieciowa obsluguje `POST` z trescia i naglowkami; tresc bledu od dostawcy
-  jest przekazywana do uzytkownika, bo to zwykle jedyna informacja, dlaczego odmowil.
-- Doprecyzowany opis bezpieczenstwa wyszukiwania w sieci z wydania 1.3.0
-  w `docs/JAK_TO_DZIALA.md`: adres wyniku dociera do okna razem z wynikiem, natomiast
-  okno nie ma dostepu do sieci i nie moze z niego skorzystac.
+- **A new color scheme.** The stylesheet rests on semantic tokens rather than raw colors:
+  hierarchy is built from surface levels instead of borders around everything, buttons lost
+  their outlines, the corner radius grew from 3 to between 6 and 12 px, and the accent color
+  is reserved for what is interactive or active. Previously the same gold was used for the
+  header, the version number, sorting and the active button at once. The background was
+  desaturated from a strongly brown `#14100c` to a nearly neutral `#111010`.
+- **The replacement window split into tabs**: *Moje dzwieki*, *Wygeneruj*, *Znajdz w sieci*,
+  *Z dysku*. Previously the four sources sat one below another and the window took up the
+  whole screen height. Now one source is visible at a time.
+- **Named actions sort before generated labels.** 406 of 844 entries have no real name, only a
+  label such as `ambience_stream #2651`, and when sorting by name they filled the entire first
+  screen. The catalog now carries a `named` flag and such entries go last.
+- Picking a file from disk (including dragging it onto a row) puts a copy into the library so
+  it can be reused. Files over 25 MB and non-audio files are skipped; the replacement itself
+  works as before.
+- The network layer handles `POST` with a body and headers; the provider's error body is passed
+  through to the user, because it is usually the only information about why it refused.
+- The description of search safety from release 1.3.0 was clarified in `docs/HOW_IT_WORKS.md`:
+  a result's address does reach the window together with the result, but the window has no
+  network access and cannot use it.
 
-### Bezpieczenstwo
+### Security
 
-- **Klucz API nigdy nie lezy jawnie.** Szyfruje go `safeStorage` systemu (na Windows
-  opiera sie o DPAPI, czyli klucz konta uzytkownika). Gdy szyfrowanie jest niedostepne,
-  aplikacja **odmawia zapisu** zamiast zapisac klucz jawnym tekstem. Klucz nie opuszcza
-  procesu glownego &mdash; okno moze co najwyzej zapytac, *czy* jest ustawiony.
-  Plik `secrets.json` jest osobny od jawnego `settings.json`.
-- Wpisy biblioteki sa dostepne przez `tsound://library/<id>`, gdzie sciezke wylicza
-  wylacznie biblioteka na podstawie wlasnego spisu &mdash; adres nie moze wskazac pliku
-  spoza niej. Pokryte testami prob podstawienia sciezki zamiast identyfikatora.
-- Kolor tla okna podaza za motywem systemowym, zeby przy starcie nie mrugalo drugim
-  kolorem, zanim renderer zdazy sie narysowac.
+- **The API key never sits in the open.** The system's `safeStorage` encrypts it (on Windows
+  this rests on DPAPI, meaning the user account key). When encryption is unavailable, the app
+  **refuses to save** rather than writing the key in plain text. The key never leaves the main
+  process; the window can at most ask *whether* it is set. The `secrets.json` file is separate
+  from the plain `settings.json`.
+- Library entries are reachable through `tsound://library/<id>`, where the path is computed
+  solely by the library from its own index, so the address cannot point at a file outside it.
+  Covered by tests that try to substitute a path for an identifier.
+- The window background color follows the system theme, so startup does not flash the other
+  color before the renderer has drawn itself.
 
-### Dla programistow
+### For developers
 
-- Nowe moduly: `electron/lib/generate.js` (adaptery generatorow, wzorowane na
-  `providers.js`), `electron/lib/secrets.js` (klucze przez `safeStorage`)
-  i `electron/lib/library.js` (biblioteka wlasnych dzwiekow).
-- 32 nowe testy jednostkowe; lacznie 170.
+- New modules: `electron/lib/generate.js` (generator adapters, modelled on `providers.js`),
+  `electron/lib/secrets.js` (keys through `safeStorage`) and `electron/lib/library.js`
+  (the library of your own sounds).
+- 32 new unit tests, 170 in total.
 
 ## [1.4.0] - 2026-08-16
 
-Wydanie o odchudzeniu interfejsu i o bledach, ktore mogly kosztowac utrate profilu.
+A release about slimming down the interface and about bugs that could have cost you a profile.
 
-### Zmienione
+### Changed
 
-- **Interfejs pokazuje dzwieki, a nie stan programu.** Z tabeli znikly kolumny
-  *Ref*, *Plik*, *Rozmiar* i *Id*, z paska plakietki *ffmpeg*, *nazwy z client.exe*
-  i *klient 15.32*, checkbox *tylko streamy*, przyciski *Odswiez*, *Dopasuj kolumny*,
-  *auto*, *stop*, *Eksport profilu*, *Import profilu* i *Vault*. Zostaly cztery kolumny
-  (Dzwiek w grze, Kategoria, Dlugosc, Akcje) i szesc kontrolek w naglowku zamiast
-  dwudziestu. Powod: wszystkie usuniete elementy opisywaly stan wewnetrzny programu,
-  a nie dzwieki w grze &mdash; np. filtr *tylko streamy* dawal dokladnie te same
-  220 pozycji co kategorie MUSIC + AMBIENCE_STREAM + AMBIENCE_OBJECT, a *Rozmiar*
-  korelowal z *Dlugoscia* na poziomie r = 0,99.
-- **Przyciski w wierszu renderuja sie tylko wtedy, gdy cos robia.** Bylo 5064 kontrolek,
-  z czego 843 wyszarzonych *Przywroc* i 844 nieaktywne *A/B* na swiezej instalacji.
-  Jest 1690 kontrolek i ani jednej martwej. Wyciszenie przenioslo sie do okna podmiany
-  (to i tak ta sama operacja), a *pokaz w Eksploratorze* i *kopiuj id* pod prawy przycisk myszy.
-- **Status jako kropka przy nazwie zamiast osobnej kolumny** &mdash; 843 z 844 wierszy
-  pokazywalo to samo slowo, wiec znaczenie ma wylacznie odstepstwo od oryginalu.
-  Liczniki statusow nad lista sa jednoczesnie filtrami.
-- **Stany wyjatkowe jako pasy nad lista, nie plakietki w naglowku.** Brak ffmpega,
-  nazwy z zapisanej listy i nadpisanie plikow przez launcher pojawiaja sie tylko wtedy,
-  gdy faktycznie zachodza, razem z przyciskiem, ktory je zalatwia. Plakietka informowala,
-  gdy wszystko dziala, i milczala, gdy przestawalo.
-- Sciezka klienta, przycisk *Zmien...* i wersja klienta scalone w jeden przycisk-kontekst;
-  rzadkie akcje przeniesione do menu. Odswiezanie dzieje sie samo po powrocie do okna
-  (oraz na <kbd>F5</kbd>), bo to jedyny moment, w ktorym statusy moga byc nieaktualne.
-- Kolumny techniczne (*Ref*, *Id*, *Plik*, *Rozmiar*) wracaja jednym klikni&#281;ciem
-  przez *Pokaz szczegoly techniczne* w menu &mdash; nie zostaly usuniete, tylko schowane.
-- Suma minimalnych szerokosci kolumn spadla z 904 do 532 px, wiec `MIN_WINDOW_WIDTH`
-  zszedl z 940 na 580 &mdash; okno miesci sie na polowie znacznie wezszego ekranu.
-- Wyszukiwarka przeszukuje nazwe akcji, kategorie, id i zrodlo podmianki. Referencja
-  i nazwa pliku wypadly razem ze swoimi kolumnami, zeby wyniki nie trafialy w wiersze,
-  w ktorych szukanego tekstu nie widac.
-- Komunikaty z procesu glownego docieraja do uzytkownika bez opakowania Electrona
-  (`Error invoking remote method 'sound:replace': Error: ...`), odmieniaja sie przez
-  liczebnik i mowia nazwa dzwieku zamiast `#677`.
-- Widac, ze aplikacja pracuje: pasek pod naglowkiem (z realnym postepem przy liczeniu
-  odciskow), kursor oczekiwania i podswietlenie zmienionego wiersza.
-- Doprecyzowany opis bezpieczenstwa wyszukiwania w sieci z wydania 1.3.0. Poprzednie
-  sformulowanie mowilo, ze okno aplikacji nie ma dostepu "do adresow"; w rzeczywistosci
-  adres wyniku dociera do okna razem z wynikiem wyszukiwania &mdash; okno nie ma
-  natomiast dostepu do sieci i nie moze z niego skorzystac.
+- **The interface shows sounds, not the state of the program.** The *Ref*, *Plik*, *Rozmiar*
+  and *Id* columns are gone from the table, as are the *ffmpeg*, *names from client.exe* and
+  *client 15.32* badges from the bar, the *streams only* checkbox, and the *Odswiez*,
+  *Dopasuj kolumny*, *auto*, *stop*, *Eksport profilu*, *Import profilu* and *Vault* buttons.
+  Four columns remain (in-game sound, category, length, actions) and six controls in the header
+  instead of twenty. The reason: everything removed described the internal state of the program
+  rather than the sounds in the game. The *streams only* filter, for example, returned exactly
+  the same 220 entries as the MUSIC + AMBIENCE_STREAM + AMBIENCE_OBJECT categories, and *Rozmiar*
+  correlated with *Dlugosc* at r = 0.99.
+- **Row buttons render only when they do something.** There were 5064 controls, of which 843
+  greyed-out *Przywroc* and 844 inactive *A/B* on a fresh installation. Now there are 1690
+  controls and not one dead. Muting moved into the replacement window (it is the same operation
+  anyway), and *show in Explorer* and *copy id* moved to the right mouse button.
+- **Status as a dot next to the name instead of its own column.** 843 of 844 rows showed the
+  same word, so only the deviation from the original carries meaning. The status counters above
+  the list double as filters.
+- **Exceptional states as bars above the list, not badges in the header.** A missing ffmpeg,
+  names from a saved list and files overwritten by the launcher appear only when they actually
+  happen, together with a button that deals with them. A badge told you when everything worked
+  and stayed silent when it stopped.
+- The client path, the *Zmien...* button and the client version merged into a single context
+  button; rare actions moved into the menu. Refreshing happens by itself when the window is
+  focused again (and on <kbd>F5</kbd>), because that is the only moment statuses can be stale.
+- The technical columns (*Ref*, *Id*, *Plik*, *Rozmiar*) come back with one click through
+  *Pokaz szczegoly techniczne* in the menu. They were hidden, not removed.
+- The sum of minimum column widths dropped from 904 to 532 px, so `MIN_WINDOW_WIDTH` went from
+  940 to 580 and the window fits on half of a much narrower screen.
+- The search box covers the action name, category, id and replacement source. The reference and
+  file name dropped out along with their columns, so results no longer land on rows where the
+  searched text is not visible.
+- Messages from the main process reach the user without Electron's wrapper
+  (`Error invoking remote method 'sound:replace': Error: ...`), decline correctly by number, and
+  name the sound instead of saying `#677`.
+- You can see the app working: a bar under the header (with real progress while fingerprints
+  are computed), a wait cursor and a highlight on the changed row.
+- The description of search safety from release 1.3.0 was clarified. The earlier wording said
+  the app window had no access "to addresses"; in reality a result's address reaches the window
+  together with the search result. What the window does not have is network access, so it
+  cannot use it.
 
-### Naprawione
+### Fixed
 
-- **Profil zapisywany nieatomowo.** Przerwany zapis (zamkniecie okna, brak miejsca)
-  zostawial uciety JSON, po ktorym wszystkie podmianki stawaly sie "obce". Teraz
-  tmp + rename, tak jak przy plikach dzwiekowych.
-- **Brak blokady drugiej instancji.** Dwie kopie aplikacji wskazujace tego samego
-  klienta trzymaly wlasny profil w pamieci i przy zapisie kasowaly sobie nawzajem
-  podmianki. Druga instancja wyciaga teraz na wierzch okno pierwszej.
-- **Eksport, import i ponowne wgranie podmianek bez wybranego klienta** konczyly sie
-  surowym `Cannot read properties of null` &mdash; w dodatku dopiero po przejsciu przez
-  okno wyboru pliku. Teraz odmawiaja od razu i po ludzku.
-- **Nieudane wczytanie klienta zostawialo pomieszany stan** &mdash; `state.client`
-  wskazywal nowa instalacje, a katalog opisywal poprzednia. Calosc powstaje teraz
-  w zmiennych lokalnych i trafia do stanu jednym podstawieniem.
-- **Wykrywanie uruchomionego klienta bylo fail-open**: blad `tasklist` (np. przekroczony
-  limit czasu) byl cicho traktowany jak "gra nie dziala" i przepuszczal zapis przy
-  wlaczonej Tibii. Wynik jest teraz trojstanowy, a nieudane sprawdzenie wstrzymuje zapis.
-- **ffmpeg wykrywany tylko przy starcie** &mdash; kto zainstalowal go pozniej, do konca
-  sesji widzial komunikat o jego braku. Doszedl przycisk *Sprawdz ponownie*.
-- **Pamiec podgladow z sieci rosla bez ograniczen** i kazdy kiedykolwiek znaleziony
-  adres zostawal pobieralny do konca zycia procesu. Teraz limit 200 najswiezszych.
-- Zapisy `settings.json` sa szeregowane i atomowe &mdash; rownolegly zapis geometrii
-  okna i sciezki klienta gubil jedna ze zmian.
-- Okno pamieta rozmiar i polozenie (z walidacja wzgledem podlaczonych ekranow),
-  glosnosc odsluchu przezywa restart, a nieudane wczytanie dzwieku nie zostawia
-  wiersza zapalonego na stale.
+- **The profile was written non-atomically.** An interrupted write (closing the window, running
+  out of space) left truncated JSON, after which every replacement became "foreign". Now it is
+  tmp plus rename, the same as with sound files.
+- **No second-instance lock.** Two copies of the app pointing at the same client each kept their
+  own profile in memory and wiped each other's replacements on save. A second instance now
+  brings the first one's window to the front.
+- **Export, import and reapplying replacements without a client selected** ended in a raw
+  `Cannot read properties of null`, and only after going through the file picker. They now
+  refuse straight away and in plain language.
+- **A failed client load left mixed state**: `state.client` pointed at the new installation while
+  the directory described the previous one. The whole thing is now built in local variables and
+  assigned to the state in one substitution.
+- **Detecting a running client was fail-open**: a `tasklist` error (a timeout, for example) was
+  quietly treated as "the game is not running" and let a write through while Tibia was up. The
+  result is now tri-state, and a failed check blocks the write.
+- **ffmpeg was detected only at startup**, so anyone who installed it later saw the "missing
+  ffmpeg" message for the rest of the session. A *Sprawdz ponownie* button was added.
+- **The memory of web previews grew without bound**, and every address ever found stayed
+  downloadable for the life of the process. There is now a limit of the 200 most recent.
+- Writes to `settings.json` are serialized and atomic. A concurrent write of the window geometry
+  and the client path used to lose one of the changes.
+- The window remembers its size and position (validated against the connected displays), the
+  preview volume survives a restart, and a failed sound load no longer leaves a row lit up
+  permanently.
 
-### Bezpieczenstwo
+### Security
 
-- Rozstrzyganie adresow `tsound://` wydzielone z `main.js` do `electron/lib/tsound.js`
-  jako czysta funkcja. To jedyna bariera miedzy nazwa przyslana przez okno aplikacji
-  a odczytem pliku z dysku, a w procesie glownym nie dalo sie jej przetestowac bez
-  uruchamiania calego Electrona. Doszly testy prob wyjscia poza katalog, takze
-  zakodowanych procentowo.
-- Testy warstwy sieciowej: odrzucanie adresow innych niz `https`, przerwanie pobierania
-  po przekroczeniu limitu mimo klamliwego `Content-Length`, sprzatanie katalogu
-  tymczasowego po bledzie.
-- `setWindowOpenHandler` i blokada `will-navigate` &mdash; okno nie ma linkow ani
-  nawigacji, wiec kazda taka proba oznacza, ze cos poszlo nie tak.
+- Resolving `tsound://` addresses was extracted from `main.js` into `electron/lib/tsound.js` as
+  a pure function. It is the only barrier between a name sent by the app window and a file read
+  from disk, and inside the main process there was no way to test it without launching the whole
+  of Electron. Tests for attempts to escape the directory were added, including percent-encoded ones.
+- Network layer tests: rejecting addresses other than `https`, aborting a download that exceeds
+  the limit despite a lying `Content-Length`, cleaning up the temporary directory after an error.
+- `setWindowOpenHandler` and a `will-navigate` block. The window has no links and no navigation,
+  so any such attempt means something went wrong.
 
-### Dla programistow
+### For developers
 
-- Kolumny sa definiowane w `renderer/app.js`, a komorki maja `data-col`. Skrypty w `tools/`
-  czytaly je po indeksie i po cichu sypaly sie przy kazdej zmianie ukladu; teraz czytaja
-  po nazwie i steruja aplikacja przez `window.__tsc` zamiast klikac po identyfikatorach.
-  `tools/e2e-columns.js` mial wlasna, recznie przepisana kopie mapy minimow &mdash;
-  bierze ja teraz z jednego zrodla.
-- 34 nowe testy jednostkowe (`tests/tsound.test.js`, `tests/net.test.js`,
-  `tests/processes.test.js`); lacznie 138.
+- Columns are defined in `renderer/app.js` and cells carry `data-col`. The scripts in `tools/`
+  used to read them by index and quietly fell apart on every layout change; they now read by name
+  and drive the app through `window.__tsc` instead of clicking by identifier.
+  `tools/e2e-columns.js` had its own hand-copied map of minimum widths; it now takes it from a
+  single source.
+- 34 new unit tests (`tests/tsound.test.js`, `tests/net.test.js`, `tests/processes.test.js`);
+  138 in total.
 
 ## [1.3.0] - 2026-08-16
 
-### Dodane
+### Added
 
-- **Wyszukiwanie dzwiekow w sieci.** Przycisk *Podmien* otwiera okno, w ktorym mozna
-  wpisac fraze (np. "big explosion"), odsluchac wyniki i jednym klikni&#281;ciem podmienic
-  dzwiek w kliencie. Ponowny klik w &#9654; zatrzymuje odsluch. Pobrany plik przechodzi
-  ta sama sciezke co plik z dysku: kopia oryginalu, konwersja ffmpegiem, zapis atomowy.
-- Dwa wbudowane zrodla, oba bez rejestracji i klucza API: **Openverse** (agregator
-  wolnych tresci, m.in. Freesound) i **Internet Archive**. Wyniki sa filtrowane twardo
-  do licencji CC0; Internet Archive dodatkowo ograniczony do kolekcji, ktore w calosci
-  sa CC0.
-- Wlasne zrodla uzytkownika &mdash; deklaratywne adaptery JSON (`searchUrl`, `resultsPath`,
-  mapowanie pol). Za ich zgodnosc z regulaminem i licencjami odpowiada uzytkownik.
-- Wklejanie bezposredniego linku do pliku audio.
-- Pochodzenie pobranego dzwieku (autor, licencja, adres zrodla) zapisywane w profilu.
-- **Import profilu.** Eksport zapisuje podmianki **razem z dzwiekami** w jednym pliku
-  JSON, a import wgrywa je z powrotem. Rozwiazuje sytuacje, w ktorej po aktualizacji
-  albo przeinstalowaniu klienta pliki wracaja do oryginalu: wczytujesz profil
-  i podmianki sa z powrotem, razem z informacja o pochodzeniu i licencji. Import nie
-  wymaga ffmpega &mdash; audio w profilu jest juz w formacie gry.
-- Dzwieki, ktorych nie ma w biezacej wersji klienta (bo CipSoft je przekodowal, wiec
-  zmienila sie nazwa pliku), sa przy imporcie pomijane i **raportowane**, a nie po
-  cichu gubione. Tak samo wpisy z uszkodzonym audio &mdash; sprawdzane przed
-  nadpisaniem czegokolwiek.
+- **Searching for sounds online.** The *Podmien* button opens a window where you can type a
+  phrase (for example "big explosion"), listen to the results and replace a sound in the client
+  with one click. Clicking the play icon again stops the preview. A downloaded file follows the
+  same path as a file from disk: a backup of the original, conversion with ffmpeg, an atomic write.
+- Two built-in sources, both without registration or an API key: **Openverse** (an aggregator of
+  free content, including Freesound) and **Internet Archive**. Results are filtered hard to the
+  CC0 license; Internet Archive is additionally restricted to collections that are CC0 in their
+  entirety.
+- Custom user sources: declarative JSON adapters (`searchUrl`, `resultsPath`, field mapping).
+  Making sure they comply with the site's terms and licensing is the user's responsibility.
+- Pasting a direct link to an audio file.
+- The provenance of a downloaded sound (author, license, source address) recorded in the profile.
+- **Profile import.** Export saves the replacements **together with the audio** in a single JSON
+  file, and import writes them back. This solves the situation where files revert to the original
+  after a client update or reinstall: you load the profile and the replacements are back, along
+  with the provenance and license information. Import does not need ffmpeg, because the audio in
+  the profile is already in the game's format.
+- Sounds that do not exist in the current client version (because CipSoft re-encoded them, so the
+  file name changed) are skipped on import and **reported** rather than quietly lost. The same
+  goes for entries with damaged audio, which are checked before anything is overwritten.
 
-### Bezpieczenstwo
+### Security
 
-- Caly ruch sieciowy wychodzi wylacznie z procesu glownego i tylko na zadanie uzytkownika.
-  Okno aplikacji nie ma dostepu do sieci &mdash; odsluch wyniku dostaje przez klucz
-  i protokol `tsound://`, wiec CSP pozostaje szczelne.
-- Dozwolone jest wylacznie `https`; adresy `http`, `file` i `data` sa odrzucane.
-  Prefiks URL we wlasnych zrodlach doklejany jest tylko do sciezek wzglednych, zeby
-  absolutny adres `http://` nie mogl sie skleic w pozornie poprawny `https`.
-- Limit 25 MB na pobierany plik, przerywany w trakcie pobierania.
+- All network traffic leaves from the main process only, and only at the user's request. The app
+  window has no network access; it receives previews through a key and the `tsound://` protocol,
+  so the CSP stays closed.
+- Only `https` is allowed; `http`, `file` and `data` addresses are rejected. The URL prefix in
+  custom sources is only prepended to relative paths, so an absolute `http://` address cannot be
+  glued into a seemingly correct `https` one.
+- A 25 MB limit on downloaded files, enforced during the transfer.
 
-### Zmienione
+### Changed
 
-- README i `docs/JAK_TO_DZIALA.md`: opisany mechanizm laczenia sie z siecia,
-  lista odpytywanych adresow i zabezpieczen. Poprzednie zdanie o braku jakichkolwiek
-  polaczen przestalo byc prawdziwe i zostalo zastapione konkretem.
+- README and `docs/HOW_IT_WORKS.md`: the network mechanism, the list of queried addresses and the
+  safeguards are described. The earlier sentence about having no connections at all stopped being
+  true and was replaced with specifics.
 
 ## [1.2.0] - 2026-08-14
 
-Wydanie o dystrybucji: nic nie zmienia sie w dzialaniu aplikacji, chodzi o to,
-zeby dalo sie sprawdzic, co sie pobralo.
+A release about distribution: nothing changes in how the app works; the point is being able to
+check what you downloaded.
 
-### Dodane
+### Added
 
-- Trzeci wariant do pobrania: archiwum `.zip` z ta sama aplikacja co wersja portable.
-  Przegladarki traktuja archiwa lagodniej niz surowe pliki `.exe`, wiec jest to
-  wyjscie awaryjne, gdy pobieranie instalatora jest blokowane.
-- Poswiadczenie pochodzenia buildu (`actions/attest-build-provenance`) &mdash;
-  kryptograficzny dowod, ze dany plik powstal z konkretnego commita w tym repozytorium
-  na serwerach GitHuba. Weryfikacja: `gh attestation verify <plik> --repo <repo>`.
-  GitHub udostepnia te funkcje tylko dla repozytoriow publicznych, wiec krok
-  wlacza sie automatycznie dopiero po zmianie widocznosci repozytorium.
-- Sumy SHA-256 wszystkich artefaktow w opisie kazdego wydania, razem z instrukcja
-  sprawdzenia (`Get-FileHash`).
+- A third download variant: a `.zip` archive with the same app as the portable build. Browsers
+  treat archives more gently than bare `.exe` files, so it is a fallback for when downloading the
+  installer is blocked.
+- Build provenance attestation (`actions/attest-build-provenance`): cryptographic proof that a
+  given file was built from a specific commit in this repository on GitHub's servers.
+  Verification: `gh attestation verify <file> --repo <repo>`. GitHub offers this only for public
+  repositories, so the step turns itself on once the repository visibility changes.
+- SHA-256 sums of all artifacts in every release description, together with instructions for
+  checking them (`Get-FileHash`).
 
-### Zmienione
+### Changed
 
-- README: sekcja instalacji rozbita na trzy warianty pobrania i osobny akapit
-  o ostrzezeniu SmartScreen wraz z trzema sposobami weryfikacji pliku.
+- README: the installation section split into three download variants plus a separate paragraph
+  about the SmartScreen warning and three ways to verify a file.
 
 ## [1.1.0] - 2026-08-14
 
-### Dodane
+### Added
 
-- Okno startuje na polowie obszaru roboczego ekranu (nie mniej niz 940 px, czyli tyle,
-  ile potrzeba na tabele bez przewijania w poziomie).
-- Dopasowanie szerokosci kolumn do okna: tryb *auto* (domyslny) reaguje na zmiane
-  rozmiaru okna i filtrow, przycisk *Dopasuj kolumny* robi to jednorazowo. Kazda kolumna
-  ma wlasna minimalna szerokosc, wiec przy waskim oknie nic nie zostaje sciete do zera.
-- `start.bat` &mdash; uruchamianie jednym klikiem. Ten sam plik dziala obok zainstalowanej
-  aplikacji (odpala `.exe`) i w katalogu zrodel (instaluje zaleznosci i robi `npm start`).
-  Trafia tez do paczki instalacyjnej.
+- The window starts at half the screen's working area (no less than 940 px, which is what the
+  table needs without horizontal scrolling).
+- Fitting column widths to the window: *auto* mode (the default) reacts to window and filter
+  changes, and the *Dopasuj kolumny* button does it once. Every column has its own minimum width,
+  so nothing gets squeezed to zero in a narrow window.
+- `start.bat` for launching with one click. The same file works next to an installed app (running
+  the `.exe`) and in the source directory (installing dependencies and running `npm start`).
+  It also ships inside the installer package.
 
-### Zmienione
+### Changed
 
-- README przepisane pod uzytkownikow koncowych (co aplikacja robi z plikami,
-  bezpieczenstwo, FAQ). Szczegoly dzialania przeniesione do
-  `docs/JAK_TO_DZIALA.md`, tresci dla programistow do `docs/DEVELOPMENT.md`.
+- README rewritten for end users (what the app does with files, safety, FAQ). The details of how
+  it works moved to `docs/HOW_IT_WORKS.md`, and developer content to `docs/DEVELOPMENT.md`.
+- Action buttons in the table are now icons with tooltips instead of text. The column narrowed
+  from 296 to 206 px, which lets the table fit on half of a 1920 px screen without scrolling
+  sideways.
+- Column widths are measured from the data model rather than through `innerText`, so fitting them
+  does not force a layout recalculation of 844 rows.
 
-- Przyciski akcji w tabeli sa teraz ikonami z podpowiedziami zamiast napisow &mdash;
-  kolumna zwezila sie z 296 do 206 px, dzieki czemu tabela miesci sie na polowie
-  ekranu 1920 px bez przewijania w bok.
-- Szerokosci kolumn mierzone sa z modelu danych zamiast przez `innerText`, wiec
-  dopasowanie nie wymusza przeliczenia ukladu 844 wierszy.
+### Fixed
 
-### Naprawione
-
-- Test `slugForClient` mial wpisane na sztywno sciezki windowsowe i przewracal CI
-  na `ubuntu-latest` &mdash; na Linuksie backslash nie jest separatorem, wiec
-  `path.basename('C:\\...')` zwraca cala sciezke zamiast ostatniego segmentu.
-  Sciezki testowe skladane sa teraz przez `path.join`.
+- The `slugForClient` test had Windows paths hard-coded and broke CI on `ubuntu-latest`. On Linux
+  a backslash is not a separator, so `path.basename('C:\\...')` returns the whole path instead of
+  the last segment. Test paths are now assembled with `path.join`.
 
 ## [1.0.0] - 2026-08-13
 
-Pierwsze wydanie.
+The first release.
 
-### Dodane
+### Added
 
-- Odczyt banku dzwiekow klienta (`sounds-<sha256>.dat`, protobuf `tibia.protobuf.sound.Sounds`)
-  wraz z nazwami akcji wyciaganymi z deskryptorow w `client.exe`; fallback na snapshot
-  z klienta 15.32 w `data/enums.snapshot.json`.
-- Tabela wszystkich dzwiekow: akcja, kategoria, referencja, id, plik, rozmiar, dlugosc,
-  status; wyszukiwarka, filtr kategorii i statusu, sortowanie po kazdej kolumnie.
-- Reczna zmiana szerokosci kolumn przeciaganiem granicy naglowka, dwuklik na granicy
-  dopasowuje kolumne do najdluzszej tresci. Ustawienia zostaja w `localStorage`.
-- Odtwarzanie dzwieku z klienta i porownanie A/B z oryginalem z vaulta
-  (protokol `tsound://`, walidacja nazw plikow).
-- Podmiana dzwieku na wlasny plik (mp3/wav/flac/m4a/ogg/opus/aac/wma) z konwersja przez
-  ffmpeg do Vorbis, z zachowaniem `sampleRate` i liczby kanalow oryginalu.
-  Obsluga drag&drop pliku prosto na wiersz tabeli.
-- Wyciszanie pojedynczego dzwieku (0,05 s ciszy o parametrach oryginalu).
-- Przywracanie oryginalu z vaulta lub z recznej kopii `___sound-<sha256>.ogg`.
-- Wykrywanie stanu plikow po sha256: `oryginal`, `podmieniony`,
-  `nadpisany przez launcher`, `obcy`, `brak pliku`.
-- Przycisk *Zastosuj ponownie* &mdash; wgrywa podmianki z powrotem po patchu launchera.
-- Eksport profilu do JSON.
-- Blokada zapisu gdy klient Tibii jest uruchomiony.
-- Cache hashy po `size` + `mtime` &mdash; ponowne wczytanie 844 plikow (110 MB) w ~0,3 s.
-- Instalatory Windows: NSIS i portable.
-- `VERSION.md` jako zrodlo prawdy dla numeru wersji; numer widoczny na pasku
-  aplikacji i w tytule okna.
+- Reading the client sound bank (`sounds-<sha256>.dat`, protobuf `tibia.protobuf.sound.Sounds`)
+  together with action names extracted from the descriptors in `client.exe`; falling back to a
+  snapshot from client 15.32 in `data/enums.snapshot.json`.
+- A table of all the sounds: action, category, reference, id, file, size, length, status; a search
+  box, category and status filters, sorting by every column.
+- Resizing columns by dragging the header boundary; double-clicking the boundary fits the column
+  to its longest content. The settings are kept in `localStorage`.
+- Playing a sound from the client and comparing it A/B against the original from the vault (the
+  `tsound://` protocol, with file name validation).
+- Replacing a sound with your own file (mp3/wav/flac/m4a/ogg/opus/aac/wma), converted through
+  ffmpeg to Vorbis while preserving the original's `sampleRate` and channel count. Dragging and
+  dropping a file straight onto a table row is supported.
+- Muting a single sound (0.05 s of silence with the original's parameters).
+- Restoring an original from the vault or from a manual `___sound-<sha256>.ogg` backup.
+- Detecting file state by sha256: `oryginal`, `podmieniony`, `nadpisany przez launcher`, `obcy`,
+  `brak pliku`.
+- The *Zastosuj ponownie* button, which reapplies replacements after a launcher patch.
+- Exporting the profile to JSON.
+- A write lock while the Tibia client is running.
+- A hash cache keyed by `size` + `mtime`, so reloading 844 files (110 MB) takes about 0.3 s.
+- Windows installers: NSIS and portable.
+- `VERSION.md` as the source of truth for the version number, which is shown in the app bar and
+  in the window title.
 
-### Bezpieczenstwo
+### Security
 
-- `contextIsolation: true`, `nodeIntegration: false`, CSP w rendererze;
-  caly dostep do dysku przez `contextBridge`.
-- Zapis wylacznie do `<klient>/packages/Tibia/sounds/*.ogg` i wlasnego vaulta;
-  nazwy plikow walidowane wzorcem `sound-<64 hex>.ogg`, wiec nie da sie wyjsc
-  poza katalog dzwiekow.
+- `contextIsolation: true`, `nodeIntegration: false`, a CSP in the renderer; all disk access
+  through `contextBridge`.
+- Writes only to `<client>/packages/Tibia/sounds/*.ogg` and the app's own vault; file names are
+  validated with the `sound-<64 hex>.ogg` pattern, so there is no way out of the sounds directory.
 
 [Unreleased]: https://github.com/Mysttic/tibia-sounds-config/compare/v1.7.0...HEAD
 [1.7.0]: https://github.com/Mysttic/tibia-sounds-config/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/Mysttic/tibia-sounds-config/releases/tag/v1.6.1
 
-Wersje starsze niz 1.6.1 nie maja odsylaczy, bo powstaly przed rozpoczeciem historii
-repozytorium od nowa. Ich opisy zostaja powyzej jako zapis tego, co i kiedy sie zmienilo.
+Versions older than 1.6.1 have no links, because they predate the repository history being
+restarted. Their descriptions stay above as a record of what changed and when.

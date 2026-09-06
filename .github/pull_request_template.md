@@ -1,21 +1,21 @@
-## Co i po co
+## What and why
 
-<!-- Jedno-dwa zdania: co ta zmiana robi i jaki problem rozwiazuje. -->
+<!-- One or two sentences: what this change does and which problem it solves. -->
 
-## Jak sprawdzone
+## How it was checked
 
-<!-- Konkretnie. "Odpalilem testy" to za malo - napisz co widziales. -->
+<!-- Be specific. "I ran the tests" is not enough, write what you saw. -->
 
-- [ ] `npm test` przechodzi
-- [ ] sprawdzone recznie w aplikacji (`npm start`) na **kopii** klienta, nie na dzialajacej instalacji
-- [ ] jesli zmiana dotyka zapisu plikow: przeszedlem cykl podmiana -> reset i status wrocil do `oryginal`
+- [ ] `npm test` passes
+- [ ] checked by hand in the app (`npm start`) against a **copy** of the client, not a working installation
+- [ ] if the change touches file writing: I went through replace, then reset, and the status came back to `oryginal`
 
-## Wersja i changelog
+## Version and changelog
 
-- [ ] wpis w `CHANGELOG.md`
-- [ ] `version` w `package.json` podbite, jesli ta zmiana ma trafic do wydania
-      (merge do `master` bez podbicia wersji **nie** utworzy release'u)
+- [ ] an entry in `CHANGELOG.md`
+- [ ] `version` in `package.json` bumped, if this change is meant to ship in a release
+      (merging to `master` without a version bump does **not** create a release)
 
-## Ryzyko
+## Risk
 
-<!-- Co moze pojsc nie tak? Czy zmiana dotyka zapisu do katalogu klienta? -->
+<!-- What can go wrong? Does the change touch writes into the client directory? -->

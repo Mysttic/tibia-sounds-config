@@ -1,62 +1,62 @@
-# Testy
+# Tests
 
 ```bash
-npm test           # caly zestaw
-npm run test:watch # w petli, przy pracy nad modulem
-npm run verify     # ikona + testy, to samo co CI
+npm test           # the whole suite
+npm run test:watch # in a loop, while working on a module
+npm run verify     # icon + tests, the same thing CI runs
 ```
 
-Uzywamy wbudowanego `node --test`. Zero frameworkow, zero konfiguracji.
+We use the built-in `node --test`. No frameworks, no configuration.
 
-## Podzial
+## Layout
 
-| plik | co sprawdza | ffmpeg |
+| file | what it checks | ffmpeg |
 |---|---|---|
-| `tests/protobuf.test.js` | varinty, wire typy, packed, odpornosc na uciete bufory | nie |
-| `tests/soundBank.test.js` | wszystkie piec sekcji `Sounds`, ignorowanie nieznanych pol | nie |
-| `tests/descriptors.test.js` | parsowanie `FileDescriptorProto`, szukanie blobu w binarce, fallback | nie |
-| `tests/clientPaths.test.js` | wykrywanie klienta, wyrozumialosc na wskazany podkatalog | nie |
-| `tests/catalog.test.js` | macierz statusow, mapowanie akcji, cache hashy | nie |
-| `tests/changelog.test.js` | wyciaganie sekcji wydania z `CHANGELOG.md` | nie |
-| `tests/icon.test.js` | enkoder PNG, aktualnosc `build/icon.png` | nie |
-| `tests/audio.test.js` | odczyt naglowkow ogg, konwersja, cisza, obsluga bledow | **tak** |
-| `tests/lifecycle.test.js` | pelny cykl podmiana &rarr; reset &rarr; drift &rarr; reapply | **tak** |
+| `tests/protobuf.test.js` | varints, wire types, packed, resilience against truncated buffers | no |
+| `tests/soundBank.test.js` | all five `Sounds` sections, ignoring unknown fields | no |
+| `tests/descriptors.test.js` | parsing `FileDescriptorProto`, finding the blob in the binary, fallback | no |
+| `tests/clientPaths.test.js` | client detection, tolerance for a subdirectory being selected | no |
+| `tests/catalog.test.js` | the status matrix, action mapping, hash cache | no |
+| `tests/changelog.test.js` | extracting a release section from `CHANGELOG.md` | no |
+| `tests/icon.test.js` | the PNG encoder, whether `build/icon.png` is current | no |
+| `tests/update.test.js` | version comparison, installer matching, reading the GitHub response | no |
+| `tests/audio.test.js` | reading ogg headers, conversion, silence, error handling | **yes** |
+| `tests/lifecycle.test.js` | the full cycle: replace, reset, drift, reapply | **yes** |
 
-Testy wymagajace ffmpega same sie pomijaja, gdy go nie ma (`tests/helpers/env.js`),
-z czytelnym powodem w wyniku. CI ma ffmpega zainstalowanego, wiec tam leca wszystkie.
+Tests that need ffmpeg skip themselves when it is missing (`tests/helpers/env.js`), with a
+readable reason in the output. CI has ffmpeg installed, so everything runs there.
 
-## Fixture
+## Fixtures
 
-`tools/make-fixture.js` buduje syntetycznego mini-klienta w `%TEMP%`:
+`tools/make-fixture.js` builds a synthetic mini client in `%TEMP%`:
 
-- `createRawFixture()`: pliki o deterministycznej tresci nazwane wlasnym sha256.
-  Bez ffmpega. Wystarcza do testow parsera, statusow i sciezek.
-- `createFixture()`: prawdziwe pliki Vorbis wygenerowane ffmpegiem (rozne
-  czestotliwosci probkowania i liczby kanalow). Potrzebne tam, gdzie liczy sie
-  faktyczne audio.
+- `createRawFixture()`: files with deterministic content named after their own sha256.
+  No ffmpeg needed. Enough for testing the parser, statuses and paths.
+- `createFixture()`: real Vorbis files generated with ffmpeg (various sample rates and
+  channel counts). Needed wherever the actual audio matters.
 
-Oba warianty maja ten sam bank: 3 dzwieki, 3 `NumericSoundEffect` (w tym jeden
-`RandomSoundEffect` z packed varintami), `AmbienceStream`, `AmbienceObjectStream`
-i `MusicTemplate`, czyli komplet sekcji.
+Both variants share the same bank: 3 sounds, 3 `NumericSoundEffect` entries (one of them
+a `RandomSoundEffect` with packed varints), `AmbienceStream`, `AmbienceObjectStream`
+and `MusicTemplate`, so every section is covered.
 
 ```bash
-npm run fixture               # zbuduj i wypisz sciezke, do recznego pogrzebania
+npm run fixture               # build it and print the path, for poking around by hand
 ```
 
-Zadnych assetow CipSoftu w repo, zadnego dotykania prawdziwej instalacji.
+No CipSoft assets in the repo, no touching a real installation.
 
-## Weryfikacja na prawdziwym kliencie
+## Verifying against a real client
 
-Do sprawdzenia na realnych danych sluzy **kopia** klienta w `testclient/`:
+For checking things against real data there is a **copy** of the client in `testclient/`:
 
 ```bash
 robocopy "%LOCALAPPDATA%\Tibia" "%CD%\testclient" /E /MT:8
 ```
 
-Nigdy nie testujemy na dzialajacej instalacji.
+We never test against a working installation.
 
-Aplikacje uruchamiamy z wlaczonym CDP i sprawdzamy stan interfejsu bez robienia
-screenshotow:
+The app is launched with CDP enabled so the interface state can be inspected without
+taking screenshots:
 
 ```bash
 npx electron . --remote-debugging-port=9222
@@ -64,24 +64,24 @@ node tools/cdp-probe.js "document.querySelectorAll('#tb tr').length"
 node tools/cdp-probe.js --file tools/e2e-probe.js
 ```
 
-`tools/cdp-probe.js` laczy sie z rendererem po Chrome DevTools Protocol i wykonuje
-w nim wyrazenie. Gotowe scenariusze:
+`tools/cdp-probe.js` connects to the renderer over the Chrome DevTools Protocol and
+evaluates an expression in it. Ready-made scenarios:
 
-| plik | scenariusz |
+| file | scenario |
 |---|---|
-| `tools/e2e-probe.js` | odtwarzanie &rarr; podmiana &rarr; A/B &rarr; wyciszenie &rarr; reset z kopii `___` |
-| `tools/e2e-drift.js` | reakcja na patch launchera i pas *Przywroc moje* |
-| `tools/e2e-columns.js` | szerokosci kolumn, kolumny techniczne, dopasowanie do tresci, zapis ustawien |
-| `tools/e2e-ui-1-4.js` | odchudzony interfejs: kropka statusu, warunkowe przyciski, chipy, menu |
-| `tools/e2e-packaged.js` | to samo na spakowanej aplikacji z `dist/win-unpacked` |
+| `tools/e2e-probe.js` | playback, replacement, A/B, mute, reset from a `___` backup |
+| `tools/e2e-drift.js` | reaction to a launcher patch and the *Restore mine* bar |
+| `tools/e2e-columns.js` | column widths, technical columns, fit to content, saved settings |
+| `tools/e2e-ui-1-4.js` | the slimmed-down interface: status dot, conditional buttons, chips, menu |
+| `tools/e2e-packaged.js` | the same against the packaged app from `dist/win-unpacked` |
 
-Skrypty czytaja komorki przez `td[data-col="..."]` i steruja aplikacja przez
-`window.__tsc` (`refresh`, `setTech`, `setAuto`, `fit`, `entries`). Nie klikaja po
-identyfikatorach przyciskow ani nie licza kolumn po indeksie, bo jedno i drugie
-rozsypywalo sie przy kazdej zmianie ukladu.
+The scripts read cells through `td[data-col="..."]` and drive the app through
+`window.__tsc` (`refresh`, `setTech`, `setAuto`, `fit`, `entries`, `setUpdate`). They do not
+click by button id and do not count columns by index, because both of those fell apart on
+every layout change.
 
-Krok "drift" wymaga nadpisania pliku z zewnatrz. To symulacja tego, co robi
-launcher przy weryfikacji assetow:
+The "drift" step requires overwriting a file from the outside. This simulates what the
+launcher does when it verifies assets:
 
 ```bash
 V=$(ls -d vault/clients/testclient-*/)
@@ -90,7 +90,7 @@ cp "$V/originals/$F" "testclient/packages/Tibia/sounds/$F"
 node tools/cdp-probe.js --file tools/e2e-drift.js
 ```
 
-Spakowana aplikacja (inny `userData`, zasoby w `app.asar`):
+The packaged app (different `userData`, resources inside `app.asar`):
 
 ```bash
 npx electron-builder --dir --win
@@ -98,9 +98,36 @@ npx electron-builder --dir --win
 CDP_PORT=9223 node tools/cdp-probe.js --file tools/e2e-packaged.js
 ```
 
-## Co warto sprawdzic przy zmianach w obsludze plikow
+## Verifying the updater
 
-1. status wraca do `oryginal` po resecie (`sha256` zgodne z nazwa pliku)
-2. kopia oryginalu w vaulcie nie zostala nadpisana podmianka
-3. zapis jest atomowy, w katalogu klienta nie zostaja pliki `.tmp-*`
-4. przy uruchomionym kliencie Tibii operacja jest odrzucana z czytelnym komunikatem
+The update path cannot be exercised in development: `canInstallUpdate()` correctly returns
+false when `app.isPackaged` is false, and a released build is never older than the latest
+release. To test it end to end, build an installer with a version number lower than the
+published one, install it, and let it update itself:
+
+```bash
+# temporarily lower the number in VERSION.md, then:
+npm run version:sync
+npm run icon
+npx electron-builder --win nsis --publish never
+# install dist/tibia-sounds-config-<lower>-win-x64-setup.exe, launch it,
+# and use menu -> Check for updates
+# afterwards: git checkout -- VERSION.md package.json
+```
+
+What should happen: the app reports `canInstall: true`, finds the published release,
+downloads the installer with a progress bar, verifies its SHA-256, and after confirmation
+runs it silently and exits. The registry entry under
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall` should then show the new version,
+and settings plus the vault should survive untouched.
+
+One trap: in Git Bash the `/S` flag is converted into a path (`C:/Program Files/Git/S`), so
+running the installer silently from that shell needs `MSYS_NO_PATHCONV=1`. The app itself
+passes the flag through `spawn`, where no conversion happens.
+
+## Worth checking when changing file handling
+
+1. the status goes back to `original` after a reset (`sha256` matches the file name)
+2. the backup of the original in the vault was not overwritten by the replacement
+3. writes are atomic, no `.tmp-*` files are left in the client directory
+4. with the Tibia client running, the operation is refused with a readable message

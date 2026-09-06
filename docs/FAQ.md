@@ -1,134 +1,139 @@
-# Najczestsze pytania
+# Frequently asked questions
 
-## O grze i bezpieczenstwie
+## The game and safety
 
-**Czy podmiana daje jakies ulatwienie w grze?**
-Nie. Zmienia sie wylacznie to, co slychac. Aplikacja nie dotyka plikow, ktore decyduja
-o zachowaniu gry, nie wstrzykuje kodu, nie czyta pamieci procesu i nie zmienia zadnych
-informacji dostepnych graczowi. Dzwiek trwajacy inaczej niz oryginal nie przyspiesza
-ani nie opoznia niczego w grze, jest tylko dzwiekiem. Rozwiniecie:
-[Dlaczego to nie wplywa na gre](JAK_TO_DZIALA.md#dlaczego-to-nie-wplywa-na-gre).
+**Does replacing sounds give any in-game advantage?**
+No. Only what you hear changes. The app does not touch the files that decide how the game
+behaves, does not inject code, does not read process memory and does not change any
+information available to the player. A sound of a different length neither speeds anything
+up nor delays it; it is only a sound. Longer version:
+[Why this does not affect the game](HOW_IT_WORKS.md#why-this-does-not-affect-the-game).
 
-**Czy to moze zepsuc klienta?**
-Aplikacja pisze wylacznie do plikow `.ogg` w katalogu `sounds/` i przekodowuje kazdy
-plik do formatu oryginalu (ta sama czestotliwosc probkowania i liczba kanalow), wiec
-silnik dostaje dokladnie to, czego oczekuje. Nie rusza plikow wykonywalnych ani danych
-gry. Gdyby cokolwiek poszlo nie tak, sa dwie drogi powrotu: przycisk **Przywroc**
-w aplikacji albo uruchomienie launchera Tibii, ktorego weryfikacja plikow przywraca
-klienta w 100% do stanu fabrycznego.
+**Can this break the client?**
+The app writes only to `.ogg` files in the `sounds/` directory and re-encodes every file to
+the original's format (the same sample rate and channel count), so the engine gets exactly
+what it expects. It does not touch executables or game data. If anything did go wrong, there
+are two ways back: the **Przywroc** button in the app, or running the Tibia launcher, whose
+file verification restores the client to a 100% factory state.
 
-**Czy moge dostac za to bana?**
-Nikt uczciwie nie da Ci gwarancji, ani ja, ani nikt inny poza CipSoftem. To, co
-mozna powiedziec rzetelnie: projekt jest swiadomie zaprojektowany tak, zeby nie robic
-niczego poza podmiana warstwy dzwiekowej, i nie daje zadnej przewagi nad innymi graczami.
-CipSoft wspiera klienta wylacznie w stanie oryginalnym i kazda modyfikacja plikow,
-takze czysto kosmetyczna, odbywa sie na Twoja odpowiedzialnosc. Jesli masz
-watpliwosci, graj na kliencie w stanie oryginalnym.
+**Can I get banned for this?**
+Nobody can honestly guarantee an answer, neither I nor anyone outside CipSoft. What can be
+said fairly: the project is deliberately designed to do nothing beyond replacing the sound
+layer, and it gives no advantage over other players. CipSoft supports the client only in its
+original state, and every modification of its files, including a purely cosmetic one, is at
+your own risk. If you have doubts, play on an unmodified client.
 
-**Czy inni gracze uslysza moje dzwieki?**
-Nie. Zmiany sa wylacznie na Twoim komputerze.
+**Will other players hear my sounds?**
+No. The changes exist only on your computer.
 
-**Czego aplikacja na pewno nie robi?**
-Nie modyfikuje pliku wykonywalnego klienta, plikow `.dat` ani katalogow zasobow
-(`assets.json`). Nie wstrzykuje kodu, nie podpina sie do procesu gry i nie czyta jej
-pamieci. Nie wysyla o Tobie zadnych danych: zero telemetrii, zero konta. Nie dziala
-w tle: pliki gry zmienia wylacznie po Twoim klikni&#281;ciu. Pelna lista miejsc, w ktorych
-cokolwiek zapisuje, jest w [JAK_TO_DZIALA.md](JAK_TO_DZIALA.md#miejsca-w-ktorych-aplikacja-cokolwiek-zapisuje).
+**What is the app definitely not doing?**
+It does not modify the client executable, `.dat` files or asset catalogs (`assets.json`).
+It does not inject code, does not hook into the game process and does not read its memory.
+It sends no data about you: no telemetry, no account. It does not run in the background:
+it changes game files only when you click. The full list of places where it writes anything
+is in [HOW_IT_WORKS.md](HOW_IT_WORKS.md#places-where-the-app-writes-anything).
 
-## Kopie i odzyskiwanie
+## Backups and recovery
 
-**Gdzie sa kopie oryginalow?**
-W `%APPDATA%\Tibia Sounds Config\vault`, osobno dla kazdej instalacji klienta.
-Szczegoly w [JAK_TO_DZIALA.md](JAK_TO_DZIALA.md#kopie-bezpieczenstwa-vault).
+**Where are the backups of the originals?**
+In `%APPDATA%\Tibia Sounds Config\vault`, separately for each client installation.
+Details in [HOW_IT_WORKS.md](HOW_IT_WORKS.md#backups-the-vault).
 
-**Zmienilem wersje klienta i podmianki zniknely. Da sie je odzyskac?**
-Tak. Jesli aplikacja wykryla, ze launcher nadpisal pliki, sama zaproponuje nad lista
-**Przywroc moje**. A jesli przeinstalowales klienta albo przenosisz sie na inny komputer,
-to w menu (przycisk **&#8943;** w prawym gornym rogu) znajdziesz
-**Zapisz kopie moich podmianek** (zapisuje je *razem z dzwiekami* do jednego pliku)
-oraz **Wczytaj kopie** na nowej instalacji. Dzwieki, ktore w nowej wersji klienta juz
-nie istnieja, zostana pominiete i wypisane.
+**I changed client version and my replacements are gone. Can I get them back?**
+Yes. If the app detected that the launcher overwrote the files, it will offer
+**Przywroc moje** above the list. And if you reinstalled the client or are moving to another
+computer, the menu (the **&#8943;** button in the top right corner) has
+**Zapisz kopie moich podmianek** (which saves them *together with the audio* into one file)
+and **Wczytaj kopie** on the new installation. Sounds that no longer exist in the new client
+version are skipped and listed.
 
-**Jak calkowicie usunac wszystkie zmiany?**
-Kliknij **Przywroc** przy podmienionych dzwiekach albo po prostu uruchom launcher
-Tibii, ktorego weryfikacja plikow przywraca klienta w 100% do stanu fabrycznego.
+**How do I remove all the changes completely?**
+Click **Przywroc** on the replaced sounds, or simply run the Tibia launcher, whose file
+verification restores the client to a 100% factory state.
 
-## Interfejs
+## Interface
 
-**Gdzie sa techniczne szczegoly: nazwa pliku, id, rozmiar?**
-W menu **&#8943;** jest pozycja *Pokaz szczegoly techniczne*, ktora dokłada kolumny
-z referencja, id, nazwa pliku i rozmiarem. Domyslnie sa ukryte, bo do podmiany dzwieku
-nie sa potrzebne.
+**The app is in Polish. Is there an English interface?**
+Not at the moment. The application ships with a Polish interface; only the documentation is
+in English. Menu items and buttons referenced in these documents are given with their Polish
+labels so you can find them on screen.
 
-**Da sie zmienic wyglad na jasny?**
-Tak, w menu **&#8943;** &rarr; wiersz *Wyglad*: **Auto** (domyslnie, podaza za Windowsem),
+**Where are the technical details: file name, id, size?**
+The **&#8943;** menu has a *Pokaz szczegoly techniczne* entry, which adds columns with the
+reference, id, file name and size. They are hidden by default because you do not need them
+to replace a sound.
+
+**Can I switch to a light theme?**
+Yes, in the **&#8943;** menu, the *Wyglad* row: **Auto** (the default, follows Windows),
 **Jasny**, **Ciemny**.
 
-## Konta, siec, licencje
+## Accounts, network, licensing
 
-**Czy aplikacja czegos ode mnie wymaga? Konta, logowania?**
-Do wszystkiego poza generowaniem nie. Zadnego konta, zadnej rejestracji, zadnej
-telemetrii; wyszukiwanie dzwiekow w sieci tez dziala bez logowania. Do samego przegladania
-i odsluchu internet nie jest w ogole potrzebny.
+**Does the app require anything from me? An account, a login?**
+For everything except generation, no. No account, no registration, no telemetry; searching
+for sounds online also works without logging in. For browsing and previewing alone you do
+not need the internet at all.
 
-Wyjatkiem jest **generowanie dzwieku z opisu**. Ta funkcja jest domyslnie nieaktywna
-i wymaga Twojego wlasnego klucza API u zewnetrznego dostawcy, bo aplikacja nie ma
-wlasnego klucza i za nic nie placi. Klucz zapisujemy zaszyfrowany mechanizmem systemu
-i nigdy nie opuszcza on Twojego komputera. Dopoki go nie wkleisz, nic sie nie dzieje.
+The exception is **generating a sound from a description**. That feature is inactive by
+default and needs your own API key with an external provider, because the app has no key of
+its own and pays for nothing. We store the key encrypted with a system mechanism and it
+never leaves your computer. Until you paste it, nothing happens.
 
-**Skad pochodza dzwieki z wyszukiwarki i czy moge ich uzywac?**
-Wbudowane zrodla to **Openverse** (agregator wolnych tresci, m.in. Freesound) oraz
-kuratorowane kolekcje **Internet Archive**. Oba sa filtrowane wylacznie do licencji
-**CC0**, czyli domeny publicznej, wiec mozesz ich uzywac bez podawania autora.
-Aplikacja i tak zapisuje autora i licencje kazdego pobranego dzwieku.
+**Where do the sounds from the search come from and may I use them?**
+The built-in sources are **Openverse** (an aggregator of free content, including Freesound)
+and curated **Internet Archive** collections. Both are filtered exclusively to the **CC0**
+license, meaning the public domain, so you may use them without attribution. The app records
+the author and license of every downloaded sound anyway.
 
-Mozesz tez dodac wlasne zrodlo albo wkleic bezposredni link do pliku. Wtedy
-odpowiedzialnosc za sprawdzenie licencji i regulaminu tej strony jest po Twojej stronie.
+You can also add a custom source or paste a direct link to a file. In that case checking the
+license and terms of that site is your responsibility.
 
-**Kiedy aplikacja laczy sie z internetem?**
-Tylko gdy sam klikniesz *Szukaj*, *Wygeneruj*, *Uzyj* albo *Sprawdz aktualizacje*.
-Zadnej telemetrii i zadnych statystyk. Jedyne odpytywanie w tle to sprawdzanie wersji,
-ktore domyslnie jest wylaczone i wlaczasz je sam. Lista adresow:
-[JAK_TO_DZIALA.md](JAK_TO_DZIALA.md#kiedy-aplikacja-laczy-sie-z-internetem).
+**When does the app connect to the internet?**
+Only when you click *Szukaj*, *Wygeneruj*, *Uzyj* or *Sprawdz aktualizacje*. No telemetry and
+no statistics. The only background request is the version check, which is off by default and
+which you enable yourself. The list of addresses:
+[HOW_IT_WORKS.md](HOW_IT_WORKS.md#when-the-app-connects-to-the-internet).
 
-**Jak zaktualizowac aplikacje bez pobierania instalatora recznie?**
-Menu **&#8943;** &rarr; *Sprawdz aktualizacje*. Jesli wyszlo nowsze wydanie, aplikacja
-pokaze pasek nad lista i po Twoim potwierdzeniu pobierze instalator, sprawdzi jego
-sume SHA-256 i uruchomi go, zamykajac sie na czas instalacji. Obok jest przelacznik
-*Sprawdzaj sam*, ktory kaze pytac raz na dobe przy starcie; domyslnie jest wylaczony.
-Podmianki, kopie oryginalow i ustawienia przezywaja aktualizacje, bo instalator wgrywa
-sie w to samo miejsce i nie rusza katalogu `%APPDATA%`.
+## Updates
 
-**Mam wersje portable i nie widze przycisku instalacji.**
-Tak ma byc. Instalator wgralby druga kopie obok, a katalog, z ktorego program chodzi,
-zostalby stary. Aplikacja powie, ze jest nowsza wersja, i da odsylacz do strony wydania,
-skad pobierzesz nowy plik portable sam. Szczegoly:
-[JAK_TO_DZIALA.md](JAK_TO_DZIALA.md#aktualizacje-z-poziomu-aplikacji).
+**How do I update the app without downloading the installer by hand?**
+The **&#8943;** menu, then *Sprawdz aktualizacje*. If a newer release exists, the app shows a
+bar above the list and, after your confirmation, downloads the installer, verifies its
+SHA-256 and runs it, closing itself for the duration of the installation. Next to it is a
+*Sprawdzaj sam* toggle, which makes it ask once a day at startup; it is off by default.
+Replacements, backups of originals and settings survive the update, because the installer
+goes into the same place and does not touch the `%APPDATA%` folder.
 
-## Instalacja
+**I use the portable build and I do not see an install button.**
+That is intended. The installer would put a second copy next to it while the directory the
+program runs from stayed old. The app will tell you a newer version exists and give you a
+link to the release page, where you download the new portable file yourself. Details:
+[HOW_IT_WORKS.md](HOW_IT_WORKS.md#updates-from-inside-the-app).
 
-**Windows pokazuje "Windows protected your PC". Co teraz?**
-**More info** &rarr; **Run anyway**. Powod jest prozaiczny: certyfikat wydawcy kosztuje
-kilkaset zlotych rocznie i tego projektu nie ma kto sponsorowac, a bez niego Windows
-traktuje kazdy program jako "nieznanego wydawce", niezaleznie od tego, co robi.
+## Installation
 
-Zamiast wierzyc na slowo mozesz **sprawdzic, co pobrales**:
+**Windows says "Windows protected your PC". What now?**
+**More info**, then **Run anyway**. The reason is mundane: a publisher certificate costs a
+few hundred euros a year and this project has no sponsor, and without one Windows treats
+every program as coming from an "unknown publisher", regardless of what it does.
 
-- **suma kontrolna**: porownaj wynik z lista SHA-256 w opisie wydania:
+Instead of taking that on faith, you can **check what you downloaded**:
+
+- **checksum**: compare the result with the SHA-256 list in the release description:
   ```powershell
-  Get-FileHash .\tibia-sounds-config-1.6.1-win-x64-setup.exe -Algorithm SHA256
+  Get-FileHash .\tibia-sounds-config-1.7.0-win-x64-setup.exe -Algorithm SHA256
   ```
-- **pochodzenie pliku**: dowod, ze binarka powstala z konkretnego commita w tym
-  repozytorium, na serwerach GitHuba, a nie na czyims komputerze
-  (wymaga [GitHub CLI](https://cli.github.com/)):
+- **file provenance**: proof that the binary was built from a specific commit in this
+  repository, on GitHub's servers rather than on someone's computer
+  (needs the [GitHub CLI](https://cli.github.com/)):
   ```bash
-  gh attestation verify tibia-sounds-config-1.6.1-win-x64-setup.exe --repo Mysttic/tibia-sounds-config
+  gh attestation verify tibia-sounds-config-1.7.0-win-x64-setup.exe --repo Mysttic/tibia-sounds-config
   ```
-- **wlasny build**: caly kod jest tutaj, mozesz
-  [zbudowac aplikacje samodzielnie](DEVELOPMENT.md) i nie pobierac niczego gotowego.
+- **your own build**: all the code is here, you can
+  [build the app yourself](DEVELOPMENT.md) and download nothing ready-made.
 
-**Po co ffmpeg?**
-Przerabia Twoje mp3 na format, ktorego oczekuje silnik gry (ta sama czestotliwosc
-probkowania i liczba kanalow co oryginal). Bez niego dziala przegladanie i odsluch,
-nie dziala podmiana ani wyciszanie. Aplikacja pokazuje wtedy pasek z linkiem do
-instalacji i przyciskiem *Sprawdz ponownie*.
+**What is ffmpeg for?**
+It converts your mp3 into the format the game engine expects (the same sample rate and
+channel count as the original). Without it, browsing and previewing work; replacing and
+muting do not. The app then shows a bar with an installation link and a *Sprawdz ponownie*
+button.

@@ -1,83 +1,86 @@
-# Build i wydania
+# Build and releases
 
-## Zasada
+## The rule
 
-Numer wersji ma jedno zrodlo prawdy: [`VERSION.md`](../VERSION.md).
-`package.json` tylko go powtarza, bo z niego korzysta electron-builder przy nazywaniu
-artefaktow. Zgodnosc pilnuje `npm run version:check` w CI.
+The version number has a single source of truth: [`VERSION.md`](../VERSION.md).
+`package.json` only repeats it, because electron-builder uses it to name the artifacts.
+`npm run version:check` in CI guards that the two agree.
 
-Merge PR-a `develop` &rarr; `master` uruchamia workflow
-[Release](../.github/workflows/release.yml), ktory:
+Merging a `develop` to `master` pull request triggers the
+[Release](../.github/workflows/release.yml) workflow, which:
 
-1. sprawdza, czy `VERSION.md` i `package.json` maja ten sam numer (rozjazd = stop, zanim cokolwiek sie zbuduje)
-2. czyta wersje z `VERSION.md` i sprawdza, czy tag `v<wersja>` juz istnieje
-3. **jesli istnieje, konczy bez publikacji** (merge poprawki dokumentacji nic nie psuje)
-4. jesli nie, odpala testy, buduje instalatory, tworzy tag i GitHub Release
-   z trescia z `CHANGELOG.md`
+1. checks that `VERSION.md` and `package.json` carry the same number (a mismatch stops the
+   release before anything is built)
+2. reads the version from `VERSION.md` and checks whether the tag `v<version>` already exists
+3. **if it does, finishes without publishing** (merging a documentation fix breaks nothing)
+4. if it does not, runs the tests, builds the installers, creates the tag and the GitHub
+   Release with the text from `CHANGELOG.md`
 
-Wniosek praktyczny: **wydanie = podbicie numeru w `VERSION.md` w PR do master.**
+The practical consequence: **a release is a version bump in `VERSION.md` in a pull request
+to master.**
 
-## Procedura wydania
+## Release procedure
 
 ```bash
 git switch develop
 git pull
 ```
 
-1. Podbij numer w `VERSION.md` (semver: patch / minor / major).
-2. Przepisz go do `package.json`:
+1. Bump the number in `VERSION.md` (semver: patch / minor / major).
+2. Copy it into `package.json`:
 
 ```bash
 npm run version:sync
 ```
 
-3. Opisz zmiany w `CHANGELOG.md` pod naglowkiem `## [<wersja>] - RRRR-MM-DD`
-   (sekcja `Unreleased` zostaje pusta).
-4. Sprawdz lokalnie to, co sprawdzi CI:
+3. Describe the changes in `CHANGELOG.md` under a `## [<version>] - YYYY-MM-DD` heading
+   (the `Unreleased` section is left empty).
+4. Check locally what CI will check:
 
 ```bash
 npm run verify
 ```
 
-5. Commit i push:
+5. Commit and push:
 
 ```bash
 git add VERSION.md package.json CHANGELOG.md
-git commit -m "wydanie 1.1.0"
+git commit -m "release 1.1.0"
 git push
 ```
 
-Potem PR `develop` &rarr; `master`, review, merge. Reszta dzieje sie sama.
+Then a `develop` to `master` pull request, review, merge. The rest happens on its own.
 
-Po merge:
+After the merge:
 
-- workflow tworzy tag `v<wersja>` i release z artefaktami
-- tresc release'u to sekcja `## [<wersja>]` z `CHANGELOG.md` plus stale zastrzezenie
-  (projekt nieoficjalny, zmiana czysto kosmetyczna, modyfikacja na wlasna odpowiedzialnosc)
+- the workflow creates the tag `v<version>` and a release with the artifacts
+- the release body is the `## [<version>]` section from `CHANGELOG.md` plus the standing
+  disclaimer (unofficial project, cosmetic change only, modification at your own risk)
 
-Numer z `VERSION.md` trafia tez na pasek aplikacji (obok nazwy) i do tytulu okna.
-Plik jest dolaczany do paczki, wiec zainstalowana aplikacja pokazuje dokladnie
-to, co bylo w repo w chwili buildu.
+The number from `VERSION.md` also goes into the app bar (next to the name) and into the
+window title. The file is bundled into the package, so an installed app shows exactly what
+was in the repo at build time.
 
-Gdy trzeba wydac ponownie ten sam numer (np. artefakt sie nie zbudowal), uzyj
-`workflow_dispatch` z opcja **force**, ktora nadpisze tag i release.
+When the same number has to be released again (for example when an artifact failed to
+build), use `workflow_dispatch` with the **force** option, which overwrites the tag and
+the release.
 
-## Artefakty
+## Artifacts
 
-| plik | co to |
+| file | what it is |
 |---|---|
-| `tibia-sounds-config-<wersja>-win-x64-setup.exe` | instalator NSIS, per-user, z wyborem katalogu |
-| `tibia-sounds-config-<wersja>-win-x64-portable.exe` | wersja portable, bez instalacji |
-| `*.blockmap`, `latest.yml` | metadane electron-buildera |
+| `tibia-sounds-config-<version>-win-x64-setup.exe` | NSIS installer, per-user, with a directory picker |
+| `tibia-sounds-config-<version>-win-x64-portable.exe` | portable build, no installation |
+| `*.blockmap`, `latest.yml` | electron-builder metadata |
 
-Konfiguracja: [`electron-builder.yml`](../electron-builder.yml). Do paczki wchodza
-tylko `electron/`, `renderer/`, `data/` i `package.json`. Katalogi `tests/`, `tools/`,
-`docs/`, `testclient/` i `vault/` zostaja poza instalatorem.
+Configuration: [`electron-builder.yml`](../electron-builder.yml). Only `electron/`,
+`renderer/`, `data/` and `package.json` go into the package. `tests/`, `tools/`, `docs/`,
+`testclient/` and `vault/` stay out of the installer.
 
-## Dodanie kolejnej platformy
+## Adding another platform
 
-`electron-builder.yml` ma gotowe sekcje `linux` (AppImage + deb) i `mac` (dmg).
-Zeby je wlaczyc, odkomentuj odpowiedni wpis w macierzy `build` w
+`electron-builder.yml` already has `linux` (AppImage + deb) and `mac` (dmg) sections ready.
+To enable one, uncomment the matching entry in the `build` matrix in
 [`release.yml`](../.github/workflows/release.yml):
 
 ```yaml
@@ -89,66 +92,66 @@ Zeby je wlaczyc, odkomentuj odpowiedni wpis w macierzy `build` w
     dist/*.deb
 ```
 
-Wszystkie artefakty trafiaja do jednego release'u (`download-artifact` z
-`merge-multiple: true`), wiec nic poza tym nie trzeba zmieniac.
+All artifacts land in a single release (`download-artifact` with `merge-multiple: true`),
+so nothing else needs to change.
 
-Uwaga do macOS: bez certyfikatu Apple Developer buildy nie beda podpisane ani
-notaryzowane, wiec Gatekeeper pokaze ostrzezenie przy pierwszym uruchomieniu.
+A note about macOS: without an Apple Developer certificate the builds will be neither
+signed nor notarized, so Gatekeeper will warn on first launch.
 
-## Build lokalny
+## Local build
 
 ```bash
-npm run icon      # build/icon.png z tools/make-icon.js
-npm run pack      # tylko rozpakowana aplikacja -> dist/win-unpacked
-npm run dist:win  # pelne instalatory -> dist/
+npm run icon      # build/icon.png from tools/make-icon.js
+npm run pack      # unpacked app only -> dist/win-unpacked
+npm run dist:win  # full installers -> dist/
 ```
 
-### Znany problem na Windows: "Cannot create symbolic link"
+### Known problem on Windows: "Cannot create symbolic link"
 
-`npm run dist:win` moze wywalic sie na rozpakowywaniu paczki `winCodeSign`:
+`npm run dist:win` can fail while unpacking the `winCodeSign` package:
 
 ```
 ERROR: Cannot create symbolic link : Klient nie ma wymaganych uprawnien.
   ...winCodeSign\<id>\darwin\10.12\lib\libcrypto.dylib
 ```
 
-Paczka zawiera dowiazania symboliczne dla macOS, a Windows pozwala je tworzyc tylko
-przy wlaczonym trybie dewelopera albo z podniesionymi uprawnieniami. electron-builder
-potrzebuje tej paczki nie do podpisywania (nie podpisujemy), tylko do `rcedit`, ktory
-wpisuje ikone i metadane do `.exe`.
+(The message is quoted verbatim from a Polish Windows install; it means "the client does not
+have the required privileges".)
 
-Sprawdzenie, czy to ten przypadek:
+The package contains symbolic links for macOS, and Windows only allows creating those with
+developer mode enabled or with elevated privileges. electron-builder needs that package not
+for signing (we do not sign) but for `rcedit`, which writes the icon and metadata into the `.exe`.
+
+To confirm this is the case:
 
 ```cmd
 mklink test.lnk C:\Windows\win.ini
 ```
 
-Jesli widzisz "You do not have sufficient privilege", to jest to. Rozwiazania:
+If you see "You do not have sufficient privilege", that is it. Ways out:
 
-1. **Ustawienia &rarr; Prywatnosc i zabezpieczenia &rarr; Dla deweloperow &rarr; Tryb dewelopera** (na stale)
-2. jednorazowo: uruchom terminal jako administrator i odpal `npm run dist:win`
-   (paczka rozpakuje sie do cache i kolejne buildy pojda juz normalnie)
-3. sam `npm run pack` (bez instalatora) dziala bez uprawnien, wystarczy do
-   sprawdzenia, czy aplikacja sie sklada i uruchamia
+1. **Settings, Privacy and security, For developers, Developer Mode** (permanent)
+2. one-off: open a terminal as administrator and run `npm run dist:win`, which unpacks the
+   package into the cache so later builds work normally
+3. `npm run pack` alone (no installer) works without privileges and is enough to check that
+   the app assembles and starts
 
-Na `windows-latest` w GitHub Actions problem nie wystepuje, bo runner ma uprawnienia
-do tworzenia dowiazan. Gdyby kiedys wystapil, ten sam workaround (krok
-z podniesionymi uprawnieniami) dziala i tam.
+On `windows-latest` in GitHub Actions the problem does not occur, because the runner may
+create links. Should it ever appear there, the same workaround (the elevated step) applies.
 
-## Podpisywanie kodu
+## Code signing
 
-Nie podpisujemy. Instalator nie ma certyfikatu, wiec SmartScreen pokaze ostrzezenie
-"Windows protected your PC" przy pierwszym uruchomieniu. To normalne dla
-niepodpisanych aplikacji.
+We do not sign. The installer has no certificate, so SmartScreen shows a
+"Windows protected your PC" warning on first launch. That is normal for unsigned applications.
 
-Gdyby doszedl certyfikat: `electron-builder` czyta `CSC_LINK` (base64 pliku `.pfx`)
-i `CSC_KEY_PASSWORD` ze zmiennych srodowiskowych. W workflowie trzeba wtedy podac je
-z sekretow repo i usunac `CSC_IDENTITY_AUTO_DISCOVERY: false`.
+If a certificate were added: `electron-builder` reads `CSC_LINK` (the base64 of a `.pfx`
+file) and `CSC_KEY_PASSWORD` from environment variables. The workflow would then have to
+pass them from repository secrets and drop `CSC_IDENTITY_AUTO_DISCOVERY: false`.
 
-## Checklist przed merge do master
+## Checklist before merging to master
 
-- [ ] `npm run verify` przechodzi lokalnie
-- [ ] wersja w `package.json` podbita
-- [ ] `CHANGELOG.md` ma sekcje dla tej wersji
-- [ ] `npm run pack` sie sklada, aplikacja z `dist/win-unpacked` startuje i wczytuje klienta
-- [ ] przetestowane na `testclient/`, nie na dzialajacej instalacji
+- [ ] `npm run verify` passes locally
+- [ ] the version in `package.json` is bumped
+- [ ] `CHANGELOG.md` has a section for this version
+- [ ] `npm run pack` assembles, the app from `dist/win-unpacked` starts and loads a client
+- [ ] tested against `testclient/`, not against a working installation

@@ -1,28 +1,30 @@
-name: Blad
-description: Cos nie dziala tak jak powinno
+name: Bug
+description: Something does not work the way it should
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Zanim zglosisz: sprawdz w aplikacji pasek gorny (wersja klienta, zrodlo nazw, status ffmpeg)
-        i stopke (komunikat bledu). Te informacje sa najbardziej przydatne.
+        Before reporting: check the top bar in the app (client version, name source, ffmpeg status)
+        and the footer (error message). That information is the most useful.
+
+        The application interface is in Polish, so quoting the Polish labels you saw is fine.
 
   - type: textarea
     id: what
     attributes:
-      label: Co sie stalo
-      description: Co zrobiles i co zobaczyles zamiast oczekiwanego wyniku.
+      label: What happened
+      description: What you did and what you saw instead of the expected result.
     validations:
       required: true
 
   - type: textarea
     id: steps
     attributes:
-      label: Kroki
+      label: Steps
       placeholder: |
-        1. Wskazalem klienta w ...
-        2. Kliknalem "Podmien" na dzwieku #677
+        1. I selected the client in ...
+        2. I clicked "Podmien" on sound #677
         3. ...
     validations:
       required: true
@@ -30,39 +32,39 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: Wersja aplikacji
-      placeholder: "0.1.0"
+      label: App version
+      placeholder: "1.7.0"
     validations:
       required: true
 
   - type: input
     id: client-version
     attributes:
-      label: Wersja klienta Tibii
-      description: Widoczna w pasku gornym, np. "klient 15.32.df7b29"
+      label: Tibia client version
+      description: Visible in the top bar, for example "15.32.df7b29"
     validations:
       required: true
 
   - type: dropdown
     id: enums
     attributes:
-      label: Zrodlo nazw akcji
+      label: Source of the action names
       options:
-        - nazwy z client.exe
-        - nazwy ze snapshotu
-        - nie wiem
+        - names from client.exe
+        - names from the snapshot
+        - not sure
     validations:
       required: true
 
   - type: textarea
     id: error
     attributes:
-      label: Komunikat bledu
-      description: Tresc ze stopki aplikacji albo z konsoli.
+      label: Error message
+      description: The text from the app footer or from the console.
       render: text
 
   - type: input
     id: os
     attributes:
-      label: System
+      label: Operating system
       placeholder: "Windows 11 26200"
