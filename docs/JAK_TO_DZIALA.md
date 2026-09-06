@@ -92,8 +92,9 @@ Nawet blad w programie nie moze przez to nadpisac niczego poza katalogiem dzwiek
 ## Kiedy aplikacja laczy sie z internetem
 
 Domyslnie nie laczy sie wcale. Ruch sieciowy pojawia sie **wylacznie** wtedy, gdy sam
-klikniesz *Szukaj*, *Wygeneruj* albo *Uzyj* w oknie podmiany dzwieku. Nie ma zadnego
-odpytywania w tle, sprawdzania aktualizacji ani wysylania statystyk.
+klikniesz *Szukaj*, *Wygeneruj* albo *Uzyj* w oknie podmiany dzwieku, albo *Sprawdz
+aktualizacje* w menu. Nie ma wysylania statystyk ani telemetrii, a jedyne odpytywanie
+w tle to sprawdzanie wersji, ktore sam mozesz wlaczyc i ktore domyslnie jest wylaczone.
 
 Wtedy aplikacja odpytuje:
 
@@ -104,6 +105,8 @@ Wtedy aplikacja odpytuje:
 | `archive.org` | wyszukiwanie w kuratorowanych kolekcjach CC0 |
 | `api.elevenlabs.io` | tylko jesli wlaczysz generowanie efektow i wkleisz swoj klucz |
 | `openrouter.ai` | tylko jesli wlaczysz generowanie mowy i wkleisz swoj klucz |
+| `api.github.com` | sprawdzenie, czy wyszlo nowsze wydanie |
+| `objects.githubusercontent.com` | pobranie instalatora aktualizacji |
 | adres, ktory sam podasz | wlasne zrodlo lub wklejony link |
 
 Zabezpieczenia tej sciezki:
@@ -121,6 +124,39 @@ podawania autora). Internet Archive jest dodatkowo ograniczony do dwoch kolekcji
 w calosci sa CC0. Bez tego ograniczenia w wynikach pojawialyby sie nagrania bez
 zadnej licencji. Skad pochodzi kazdy pobrany dzwiek, zapisujemy w `profile.json`
 (autor, licencja, adres strony zrodlowej).
+
+## Aktualizacje z poziomu aplikacji
+
+W menu jest *Sprawdz aktualizacje*. Aplikacja pyta wtedy publiczne API GitHuba
+o najnowsze wydanie tego projektu, porownuje numer z wersja, ktora masz, i jesli
+jest nowsza, proponuje pobranie instalatora. Obok jest przelacznik *Sprawdzaj sam*,
+**domyslnie wylaczony**: po wlaczeniu aplikacja zapyta najwyzej raz na dobe, kilka
+sekund po starcie. Zapytanie nie niesie ze soba niczego poza tym, co widzi kazdy
+serwer https, i nie wymaga konta ani tokenu.
+
+Co sie dzieje po klikni&#281;ciu *Pobierz i zainstaluj*:
+
+1. Adres pliku **nie pochodzi z okna aplikacji**. Proces glowny pamieta, co znalazl
+   przy ostatnim sprawdzeniu, i tylko to potrafi pobrac; renderer nie ma jak kazac
+   mu sciagnac czegokolwiek spod dowolnego adresu.
+2. Pobieranie idzie ta sama sciezka co kazdy inny plik z sieci: wylacznie `https`,
+   limit rozmiaru przerywany w trakcie, limit czasu.
+3. Pobrany plik jest sprawdzany rozmiarem i **suma SHA-256**, ktora GitHub podaje
+   przy zasobie. Nie zgadza sie, to plik ladzie w koszu i nic sie nie uruchamia.
+4. Dopiero po Twoim potwierdzeniu aplikacja uruchamia instalator w trybie cichym
+   (`/S`) i zamyka sie. Instalator zna katalog z poprzedniej instalacji, wiec wgra
+   sie w to samo miejsce; Twoje ustawienia i vault zostaja nietkniete.
+
+Czego ta suma kontrolna **nie** znaczy: przychodzi ta sama odpowiedzia co adres
+pliku, wiec nie jest niezaleznym dowodem pochodzenia. Chroni przed uszkodzonym albo
+uciętym pobraniem, a nie przed przejeciem konta wydawcy. Jesli chcesz mocniejszego
+potwierdzenia, w opisie kazdego wydania jest polecenie `gh attestation verify`,
+ktore sprawdza, ze plik powstal z konkretnego commita przez GitHub Actions.
+
+**Wersja przenosna i rozpakowany zip nie aktualizuja sie same.** Instalator polozylby
+druga kopie w innym miejscu, a katalog, z ktorego program wlasnie chodzi, zostalby
+stary. Aplikacja to wykrywa i zamiast przycisku instalacji pokazuje odsylacz do strony
+wydania.
 
 ## Generowanie dzwieku i Twoj klucz API
 

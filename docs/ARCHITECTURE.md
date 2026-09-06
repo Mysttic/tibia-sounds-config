@@ -54,6 +54,7 @@ app:init
 | `electron/lib/catalog.js` | join bank + nazwy + sha256 -> lista wpisow ze statusem, cache hashy | soundBank, descriptors, audio |
 | `electron/lib/profile.js` | vault, kopie oryginalow, apply / reset / reapply | catalog, audio |
 | `electron/lib/processes.js` | czy klient Tibii dziala (blokada zapisu) | brak |
+| `electron/lib/update.js` | porownanie wersji, dopasowanie instalatora, odczyt odpowiedzi GitHuba | brak (`fetchJson` wstrzykiwany) |
 
 Zaleznosci ida w jedna strone: `protobuf` <- `soundBank`/`descriptors` <- `catalog` <- `profile`.
 Nic nie importuje `main.js`, wiec cala logika jest testowalna bez uruchamiania Electrona.

@@ -78,9 +78,14 @@ async function fetchJson(url, opts = {}) {
  *
  * `method`, `headers` i `body` sa potrzebne generatorom dzwiekow: tam odpowiedzia
  * na POST z promptem jest strumien audio, a nie JSON.
+ *
+ * `onProgress(odebrane, zadeklarowane)` przydaje sie przy duzych plikach, np.
+ * instalatorze aktualizacji. `zadeklarowane` bywa `null`, bo Content-Length
+ * jest opcjonalny i bywa klamliwy - limit i tak pilnujemy po realnych bajtach.
  */
 async function downloadToTemp(url, {
   maxBytes = MAX_DOWNLOAD_BYTES, timeoutMs = 60_000, method = 'GET', headers = {}, body = null,
+  onProgress = null,
 } = {}) {
   const res = await fetchWithTimeout(url, { timeoutMs, method, headers, body });
   if (!res.ok) {
@@ -112,6 +117,10 @@ async function downloadToTemp(url, {
       if (received > maxBytes) {
         cb(new NetError(`plik przekroczyl limit ${Math.round(maxBytes / 1048576)} MB`));
         return;
+      }
+      if (onProgress) {
+        // Blad w raportowaniu postepu nie ma prawa przerwac pobierania.
+        try { onProgress(received, declared || null); } catch { /* nieistotne */ }
       }
       cb(null, chunk);
     },

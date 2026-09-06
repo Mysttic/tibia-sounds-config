@@ -8,6 +8,44 @@ publikuje tag `v<wersja>` po merge do `master`, o ile taki tag jeszcze nie istni
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-06
+
+### Dodane
+
+- **Aktualizacja z poziomu aplikacji.** Menu &rarr; *Sprawdz aktualizacje* pyta publiczne
+  API GitHuba o najnowsze wydanie. Gdy jest nowsze, aplikacja pobiera instalator,
+  sprawdza jego rozmiar i sume SHA-256 podana przez GitHuba, a po potwierdzeniu
+  uruchamia go w trybie cichym i zamyka sie. Instalator wgrywa sie w to samo miejsce,
+  wiec podmianki, vault i ustawienia zostaja nietkniete.
+- Przelacznik *Sprawdzaj sam* obok tej pozycji, **domyslnie wylaczony**. Po wlaczeniu
+  aplikacja pyta najwyzej raz na dobe, kilka sekund po starcie, a wynik pokazuje paskiem
+  nad lista. Dopoki go nie wlaczysz, aplikacja nie odzywa sie do sieci sama.
+- Wersja przenosna i rozpakowany zip **odmawiaja instalacji** i pokazuja odsylacz do
+  strony wydania: instalator polozylby druga kopie obok, a katalog, z ktorego program
+  chodzi, zostalby stary. Rozpoznajemy je po `PORTABLE_EXECUTABLE_DIR` i po braku
+  deinstalatora obok pliku wykonywalnego.
+
+### Zmienione
+
+- `downloadToTemp` raportuje postep, wiec pobieranie instalatora (78 MB) pokazuje pasek
+  zamiast zamrozonego okna. Postep jest liczony w megabajtach i wysylany przy zmianie
+  pelnego MB, zeby nie zasypac IPC dziesiatkami tysiecy komunikatow.
+- Opis sieci w `README.md`, `docs/FAQ.md` i `docs/JAK_TO_DZIALA.md` uzupelniony o dwa
+  nowe adresy (`api.github.com`, `objects.githubusercontent.com`) i o to, kiedy
+  aplikacja moze zapytac o wersje sama.
+
+### Bezpieczenstwo
+
+- Adres pobieranego pliku nie pochodzi z okna aplikacji. Proces glowny pamieta, co
+  znalazl przy ostatnim sprawdzeniu, i tylko to potrafi sciagnac, wiec renderer nie ma
+  jak wskazac dowolnego adresu do pobrania ani dowolnej sciezki do uruchomienia.
+- Strona wydania otwiera sie przez `shell.openExternal` dopiero po sprawdzeniu, ze adres
+  wskazuje to repozytorium. Bez tego jedno przejete pole w odpowiedzi GitHuba otwieraloby
+  uzytkownikowi dowolna strone.
+- Niezgodna suma kontrolna kasuje pobrany plik i przerywa aktualizacje. Dokumentacja
+  mowi wprost, czego ta suma nie dowodzi: przychodzi ta sama odpowiedzia co adres, wiec
+  chroni przed uszkodzonym pobraniem, a nie przed przejeciem konta wydawcy.
+
 ## [1.6.1] - 2026-08-21
 
 Wydanie porzadkowe przed upublicznieniem repozytorium. Kod aplikacji dziala tak samo,
@@ -389,7 +427,8 @@ Pierwsze wydanie.
   nazwy plikow walidowane wzorcem `sound-<64 hex>.ogg`, wiec nie da sie wyjsc
   poza katalog dzwiekow.
 
-[Unreleased]: https://github.com/Mysttic/tibia-sounds-config/compare/v1.6.1...HEAD
+[Unreleased]: https://github.com/Mysttic/tibia-sounds-config/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/Mysttic/tibia-sounds-config/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/Mysttic/tibia-sounds-config/releases/tag/v1.6.1
 
 Wersje starsze niz 1.6.1 nie maja odsylaczy, bo powstaly przed rozpoczeciem historii
