@@ -14,6 +14,9 @@ akcji z gry, wiec wiesz, co wlasciwie zmieniasz.
   klucza API; domyslnie wylaczone.
 - **Zestawy dzwiekow**: jednym klikiem wyciszasz cala muzyke albo zostawiasz tylko
   odglosy walki. Wlasne uklady zapisujesz pod nazwa.
+- **Aktualizacja z poziomu aplikacji**: menu sprawdza, czy wyszlo nowsze wydanie,
+  pobiera instalator i sprawdza jego sume kontrolna. Pytanie o wersje idzie tylko
+  na Twoje klikniecie, chyba ze sam wlaczysz sprawdzanie raz na dobe.
 
 Wszystko, czego uzyjesz, czyli dzwieki wygenerowane i pliki wskazane z dysku, zostaje
 w bibliotece, wiec tego samego dzwieku uzyjesz pod kolejny wpis bez szukania go po dysku.

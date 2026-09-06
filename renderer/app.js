@@ -369,7 +369,40 @@ function renderBanners() {
       + 'wiec pochodza z zapisanej listy i moga byc nieaktualne.</span></div>');
   }
 
+  const upd = updateBannerHtml();
+  if (upd) out.push(upd);
+
   ui.banners.innerHTML = out.join('');
+}
+
+/**
+ * Pasek o nowej wersji. Trzy stany, bo to trzy rozne decyzje uzytkownika:
+ * jest nowsza, instalator juz lezy na dysku, albo tej instalacji nie da sie
+ * zaktualizowac samej (wersja przenosna i rozpakowany zip).
+ */
+function updateBannerHtml() {
+  if (!updateInfo) return '';
+  const { release, canInstall, downloaded } = updateInfo;
+
+  if (downloaded) {
+    return '<div class="banner act"><span>'
+      + `Pobrano wersje ${downloaded.version}${downloaded.verified ? ' i sprawdzono sume kontrolna' : ''}. `
+      + 'Instalacja zamknie aplikacje i uruchomi ja ponownie.</span>'
+      + '<button class="primary" data-b="updInstall">Zainstaluj teraz</button>'
+      + '<button data-b="dismiss">Pozniej</button></div>';
+  }
+
+  const naglowek = `Jest wersja ${release.version}, masz ${state && state.appVersion ? state.appVersion : '?'}.`;
+  if (!canInstall) {
+    return `<div class="banner act"><span>${naglowek} Ta wersja aplikacji nie aktualizuje sie sama, `
+      + 'bo instalator wgralby druga kopie obok.</span>'
+      + '<button class="primary" data-b="updPage">Otworz strone wydania</button>'
+      + '<button data-b="dismiss">Nie teraz</button></div>';
+  }
+  return `<div class="banner act"><span>${naglowek}</span>`
+    + '<button class="primary" data-b="updDownload">Pobierz i zainstaluj</button>'
+    + '<button data-b="updPage">Co sie zmienilo</button>'
+    + '<button data-b="dismiss">Nie teraz</button></div>';
 }
 
 function emptyHtml() {
@@ -422,8 +455,67 @@ ui.banners.addEventListener('click', async (ev) => {
       say('ffmpeg pobierzesz z ffmpeg.org/download.html - rozpakuj i dodaj katalog bin '
         + 'do zmiennej PATH, potem kliknij "Sprawdz ponownie".');
       break;
+    case 'updDownload': await downloadUpdate(); break;
+    case 'updInstall': await installUpdate(); break;
+    case 'updPage':
+      try { await api.updateOpenPage(); } catch (err) { say(humanError(err), 'error'); }
+      break;
     default: break;
   }
+});
+
+// ---------- aktualizacje ----------
+
+/** Ostatnio znalezione wydanie: { release, canInstall, downloaded }. */
+let updateInfo = null;
+
+async function checkUpdate({ cichy = false } = {}) {
+  if (!cichy) say('Pytam GitHuba o nowsza wersje…');
+  let res;
+  try {
+    res = await api.updateCheck();
+  } catch (err) {
+    if (!cichy) say(humanError(err), 'error');
+    return;
+  }
+
+  if (res.status === 'newer') {
+    updateInfo = { release: res.release, canInstall: res.canInstall, downloaded: null };
+    renderBanners();
+    say(`Jest wersja ${res.release.version}.`);
+    return;
+  }
+  updateInfo = null;
+  renderBanners();
+  if (cichy) return;
+  // "Nie udalo sie zapytac" to co innego niz "masz najnowsza" - pierwsze mowi
+  // o sieci, drugie o wersji.
+  if (res.status === 'failed') say(`Nie udalo sie sprawdzic: ${res.error}`, 'error');
+  else say(`Masz najnowsza wersje (${res.current}).`);
+}
+
+async function downloadUpdate() {
+  const res = await guard('Pobieram aktualizacje', () => api.updateDownload());
+  if (!res || !updateInfo) return;
+  updateInfo.downloaded = res;
+  renderBanners();
+  say(`Pobrano ${res.name} (${Math.round(res.size / 1048576)} MB).`);
+}
+
+async function installUpdate() {
+  try {
+    const res = await api.updateInstall();
+    say(`Instaluje wersje ${res.version}. Aplikacja zaraz sie zamknie.`);
+  } catch (err) {
+    say(humanError(err), 'error');
+  }
+}
+
+// Automatyczne sprawdzanie (gdy wlaczone) odzywa sie kilka sekund po starcie.
+api.onUpdateFound((res) => {
+  if (!res || res.status !== 'newer') return;
+  updateInfo = { release: res.release, canInstall: res.canInstall, downloaded: null };
+  renderBanners();
 });
 
 function fillCategories() {
@@ -1296,6 +1388,7 @@ ui.btnMenu.addEventListener('click', (ev) => {
     ? 'Ukryj szczegoly techniczne'
     : 'Pokaz szczegoly techniczne';
   markTheme();
+  markAuto();
   ui.menu.hidden = false;
   openMenuAt(ui.menu, r.right - ui.menu.offsetWidth, r.bottom + 4);
   ui.btnMenu.setAttribute('aria-expanded', 'true');
@@ -1306,6 +1399,14 @@ function markTheme() {
   const biezacy = (state && state.theme) || 'system';
   for (const b of ui.menu.querySelectorAll('.seg button[data-m^="theme:"]')) {
     b.classList.toggle('on', b.dataset.m === `theme:${biezacy}`);
+  }
+}
+
+/** Podswietlenie stanu automatycznego sprawdzania aktualizacji. */
+function markAuto() {
+  const wlaczone = Boolean(state && state.update && state.update.auto);
+  for (const b of ui.menu.querySelectorAll('.seg button[data-m^="auto:"]')) {
+    b.classList.toggle('on', b.dataset.m === (wlaczone ? 'auto:on' : 'auto:off'));
   }
 }
 
@@ -1330,10 +1431,28 @@ ui.menu.addEventListener('click', async (ev) => {
     return;
   }
 
+  // Przelacznik automatycznego sprawdzania tez zostawia menu otwarte, zeby bylo
+  // widac, ze wybor sie zapisal.
+  if (btn.dataset.m.startsWith('auto:')) {
+    const enabled = btn.dataset.m === 'auto:on';
+    try {
+      const res = await api.updateSetAuto(enabled);
+      if (state && state.update) state.update.auto = res;
+      markAuto();
+      say(enabled
+        ? 'Aplikacja sprawdzi wersje raz na dobe, przy starcie.'
+        : 'Aplikacja nie bedzie pytac o wersje sama.');
+    } catch (err) {
+      say(humanError(err), 'error');
+    }
+    return;
+  }
+
   closeMenus();
 
   switch (btn.dataset.m) {
     case 'refresh': await refreshNow(); break;
+    case 'update': await checkUpdate(); break;
 
     case 'export': {
       const res = await guard('Zapisuje kopie podmianek', () => api.exportProfile());
@@ -1824,6 +1943,13 @@ window.__tsc = {
   render,
   fit: fitColumns,
   columns: COLUMNS,
+  // Pasek aktualizacji da sie zobaczyc tylko wtedy, gdy naprawde wyszlo nowsze
+  // wydanie. Zeby dalo sie go sprawdzic bez czekania na kolejne, e2e podstawia
+  // tu wynik sprawdzenia i wola renderBanners().
+  setUpdate: (info) => {
+    updateInfo = info;
+    renderBanners();
+  },
   setTech: (on) => {
     showTech = on;
     buildHead();

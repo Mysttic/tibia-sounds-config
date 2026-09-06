@@ -3,13 +3,21 @@
 const {
   app, BrowserWindow, ipcMain, dialog, shell, protocol, net, screen, nativeTheme,
 } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const fsp = require('node:fs/promises');
+const crypto = require('node:crypto');
+const { spawn } = require('node:child_process');
+const { pipeline } = require('node:stream/promises');
 const { pathToFileURL } = require('node:url');
 
 const { resolveAppVersion } = require('./lib/version');
 const { listProviders, getProvider } = require('./lib/providers');
-const { downloadToTemp, assertHttps } = require('./lib/net');
+const { downloadToTemp, assertHttps, fetchJson } = require('./lib/net');
+const {
+  REPO: UPDATE_REPO, RELEASES_PAGE, CHECK_INTERVAL_MS, MAX_INSTALLER_BYTES,
+  fetchLatestRelease,
+} = require('./lib/update');
 const { buildBundle, applyBundle } = require('./lib/portable');
 const { validateClientDir, autodetect } = require('./lib/clientPaths');
 const { buildCatalog } = require('./lib/catalog');
@@ -139,6 +147,64 @@ function progress(done, total, label = null) {
   if (win && !win.isDestroyed()) win.webContents.send('catalog:progress', { done, total, label });
 }
 
+// --- aktualizacje ----------------------------------------------------------
+
+/**
+ * Ostatnie znalezione wydanie i pobrany instalator. Trzymamy je tutaj, a nie
+ * w rendererze, zeby okno nie moglo podac procesowi glownemu dowolnego adresu
+ * ani dowolnej sciezki do uruchomienia.
+ */
+let latestRelease = null;
+let pendingInstaller = null;   // { dir, file, version }
+let updateCapable = false;     // wynik canInstallUpdate(), liczony raz przy starcie
+let autoUpdateCheck = false;
+
+/**
+ * Czy te instalacje da sie zaktualizowac z poziomu aplikacji.
+ *
+ * Instalator NSIS wgrywa sie tam, gdzie poprzedni, wiec ma to sens wylacznie dla
+ * instalacji z `setup.exe`. Wersja portable i rozpakowany zip odpadaja: instalator
+ * polozylby druga kopie gdzie indziej, a katalog, z ktorego program wlasnie chodzi,
+ * zostalby stary. electron-builder ustawia PORTABLE_EXECUTABLE_DIR tylko w buildzie
+ * portable, a instalacja NSIS zostawia obok pliku wykonywalnego swoj deinstalator.
+ */
+async function canInstallUpdate() {
+  if (!app.isPackaged) return false;
+  if (process.platform !== 'win32') return false;
+  if (process.env.PORTABLE_EXECUTABLE_DIR) return false;
+  try {
+    const files = await fsp.readdir(path.dirname(app.getPath('exe')));
+    return files.some((f) => /^Uninstall .*\.exe$/i.test(f));
+  } catch {
+    return false;
+  }
+}
+
+async function sha256File(file) {
+  const hash = crypto.createHash('sha256');
+  await pipeline(fs.createReadStream(file), hash);
+  return hash.digest('hex');
+}
+
+async function clearPendingInstaller() {
+  if (!pendingInstaller) return;
+  const { dir } = pendingInstaller;
+  pendingInstaller = null;
+  await fsp.rm(dir, { recursive: true, force: true }).catch(() => {});
+}
+
+/**
+ * Pyta GitHuba i zapamietuje wynik. Nie rzuca - komunikat o bledzie jest czescia
+ * odpowiedzi, bo "nie udalo sie zapytac" to na ekranie co innego niz "masz najnowsza".
+ */
+async function runUpdateCheck() {
+  const res = await fetchLatestRelease({ currentVersion: APP_VERSION, fetchJson });
+  if (res.status !== 'failed') await writeSettings({ lastUpdateCheck: Date.now() });
+  latestRelease = res.status === 'newer' ? res.release : null;
+  if (latestRelease) await clearPendingInstaller();
+  return { ...res, canInstall: updateCapable, current: APP_VERSION };
+}
+
 function clearClient() {
   state.client = null;
   state.vault = null;
@@ -208,6 +274,13 @@ function publicState() {
     vaultDir: state.vault ? state.vault.dir : null,
     supportedInput: SUPPORTED_INPUT,
     theme: nativeTheme.themeSource,
+    update: {
+      // Renderer musi wiedziec, czy w ogole pokazywac przycisk instalacji:
+      // przy wersji portable zostaje sam odsylacz do strony wydania.
+      canInstall: updateCapable,
+      auto: autoUpdateCheck,
+      pending: pendingInstaller ? pendingInstaller.version : null,
+    },
   };
 }
 
@@ -292,6 +365,125 @@ function registerIpc() {
     if (win && !win.isDestroyed()) win.setBackgroundColor(surfaceColor());
     await writeSettings({ theme: source });
     return { theme: source, dark: nativeTheme.shouldUseDarkColors };
+  });
+
+  // --- aktualizacje --------------------------------------------------------
+  //
+  // Ruch sieciowy zaczyna sie tylko tutaj: albo uzytkownik kliknal "Sprawdz
+  // aktualizacje", albo sam wlaczyl automatyczne sprawdzanie.
+
+  ipcMain.handle('update:check', async () => runUpdateCheck());
+
+  ipcMain.handle('update:setAuto', async (_e, { enabled }) => {
+    autoUpdateCheck = Boolean(enabled);
+    await writeSettings({ autoUpdateCheck });
+    return autoUpdateCheck;
+  });
+
+  /**
+   * Pobiera instalator znaleziony przez ostatnie sprawdzenie.
+   *
+   * Adres nie przychodzi z okna, tylko z zapamietanego `latestRelease` - dzieki
+   * temu renderer nie moze kazac pobrac czegokolwiek z dowolnego miejsca.
+   */
+  ipcMain.handle('update:download', async () => {
+    if (!latestRelease) throw new Error('najpierw sprawdz, czy jest nowsze wydanie');
+    if (!updateCapable) {
+      throw new Error('ta wersja aplikacji nie aktualizuje sie sama - pobierz instalator ze strony wydania');
+    }
+    const { asset } = latestRelease;
+    if (!asset || !asset.url) throw new Error('to wydanie nie ma instalatora dla Windows');
+
+    await clearPendingInstaller();
+
+    // Postep liczymy w megabajtach i wysylamy tylko przy zmianie pelnego MB.
+    // Inaczej 78 MB oznaczaloby kilkadziesiat tysiecy komunikatow IPC, a pasek
+    // pokazywalby liczby w bajtach.
+    const MB = 1024 * 1024;
+    const etykieta = 'pobieram aktualizacje (MB)';
+    const razemMb = Math.max(1, Math.round((asset.size || 0) / MB));
+    let ostatnieMb = -1;
+    progress(0, razemMb, etykieta);
+
+    const dl = await downloadToTemp(asset.url, {
+      maxBytes: MAX_INSTALLER_BYTES,
+      timeoutMs: 15 * 60_000,
+      onProgress: (odebrane) => {
+        const mb = Math.floor(odebrane / MB);
+        if (mb === ostatnieMb) return;
+        ostatnieMb = mb;
+        progress(Math.min(mb, razemMb - 1), razemMb, etykieta);
+      },
+    });
+
+    try {
+      if (asset.size && dl.size !== asset.size) {
+        throw new Error(`pobrano ${dl.size} z ${asset.size} bajtow`);
+      }
+      // Suma z API sluzy do wykrycia uszkodzonego pobrania. Przychodzi ta sama
+      // odpowiedzia co adres, wiec nie jest niezaleznym dowodem pochodzenia.
+      if (asset.sha256) {
+        const suma = await sha256File(dl.path);
+        if (suma !== asset.sha256) {
+          throw new Error(`suma kontrolna sie nie zgadza (${suma.slice(0, 12)}... zamiast ${asset.sha256.slice(0, 12)}...)`);
+        }
+      }
+      // Instalator ma sie nazywac tak, jak w wydaniu - to jest widoczne w oknie
+      // kontroli konta uzytkownika i w Menedzerze zadan.
+      const cel = path.join(dl.dir, asset.name);
+      await fsp.rename(dl.path, cel);
+      pendingInstaller = { dir: dl.dir, file: cel, version: latestRelease.version };
+      return {
+        version: latestRelease.version,
+        name: asset.name,
+        size: dl.size,
+        verified: Boolean(asset.sha256),
+      };
+    } catch (err) {
+      await fsp.rm(dl.dir, { recursive: true, force: true }).catch(() => {});
+      throw err;
+    } finally {
+      progress(0, 0);
+    }
+  });
+
+  /**
+   * Oddaje pobrany plik instalatorowi i zamyka aplikacje.
+   *
+   * `/S` to cicha instalacja NSIS - instalator zna katalog z poprzedniego razu,
+   * wiec wgra sie w to samo miejsce. Katalogu tymczasowego nie kasujemy, bo
+   * instalator wlasnie z niego czyta; sprzatnie go Windows razem z %TEMP%.
+   */
+  ipcMain.handle('update:install', async () => {
+    if (!pendingInstaller) throw new Error('nie ma pobranego instalatora');
+    if (!updateCapable) throw new Error('ta wersja aplikacji nie aktualizuje sie sama');
+    try {
+      await fsp.access(pendingInstaller.file);
+    } catch {
+      pendingInstaller = null;
+      throw new Error('pobrany instalator zniknal z katalogu tymczasowego - pobierz go jeszcze raz');
+    }
+
+    spawn(pendingInstaller.file, ['/S'], { detached: true, stdio: 'ignore' }).unref();
+    // Chwila zwloki, zeby renderer zdazyl pokazac komunikat przed zamknieciem okna.
+    setTimeout(() => app.quit(), 1200);
+    return { started: true, version: pendingInstaller.version };
+  });
+
+  /**
+   * Otwiera strone wydania w przegladarce.
+   *
+   * Adres pochodzi z odpowiedzi GitHuba, wiec zanim trafi do `openExternal`,
+   * musi wskazywac nasze repozytorium. Bez tego jedno przejete pole w JSON-ie
+   * otwieraloby uzytkownikowi dowolna strone.
+   */
+  ipcMain.handle('update:openPage', async () => {
+    const url = (latestRelease && latestRelease.pageUrl) || RELEASES_PAGE;
+    if (!url.startsWith(`https://github.com/${UPDATE_REPO}/`)) {
+      throw new Error('nieoczekiwany adres wydania');
+    }
+    await shell.openExternal(url);
+    return true;
   });
 
   ipcMain.handle('client:pick', async () => {
@@ -848,12 +1040,29 @@ if (!app.requestSingleInstanceLock()) {
     const settings = await readSettings();
     // Motyw ustawiamy przed otwarciem okna, zeby jego tlo od razu bylo wlasciwe.
     if (THEME_SOURCES.includes(settings.theme)) nativeTheme.themeSource = settings.theme;
+    updateCapable = await canInstallUpdate();
+    autoUpdateCheck = Boolean(settings.autoUpdateCheck);
     registerProtocol();
     registerIpc();
     createWindow(settings);
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow(settings);
     });
+
+    // Automatyczne sprawdzanie jest domyslnie wylaczone. Gdy uzytkownik je wlaczy,
+    // pytamy najwyzej raz na dobe i dopiero po zaladowaniu okna, zeby start
+    // aplikacji nie czekal na siec. Wynik trafia do okna jako zdarzenie.
+    if (autoUpdateCheck) {
+      const ostatnie = Number(settings.lastUpdateCheck) || 0;
+      if (Date.now() - ostatnie >= CHECK_INTERVAL_MS) {
+        setTimeout(async () => {
+          const res = await runUpdateCheck();
+          if (res.status === 'newer' && win && !win.isDestroyed()) {
+            win.webContents.send('update:found', res);
+          }
+        }, 4000);
+      }
+    }
   });
 
   app.on('window-all-closed', () => {

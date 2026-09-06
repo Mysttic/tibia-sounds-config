@@ -65,6 +65,21 @@ contextBridge.exposeInMainWorld('api', {
   revealSound: (soundId) => ipcRenderer.invoke('shell:revealSound', { soundId }),
   openVault: () => ipcRenderer.invoke('shell:openVault'),
 
+  /**
+   * Aktualizacje. Okno nie podaje zadnego adresu: proces glowny sam pamieta,
+   * co znalazl przy ostatnim sprawdzeniu, i tylko to potrafi pobrac i uruchomic.
+   */
+  updateCheck: () => ipcRenderer.invoke('update:check'),
+  updateSetAuto: (enabled) => ipcRenderer.invoke('update:setAuto', { enabled }),
+  updateDownload: () => ipcRenderer.invoke('update:download'),
+  updateInstall: () => ipcRenderer.invoke('update:install'),
+  updateOpenPage: () => ipcRenderer.invoke('update:openPage'),
+  onUpdateFound: (cb) => {
+    const handler = (_e, payload) => cb(payload);
+    ipcRenderer.on('update:found', handler);
+    return () => ipcRenderer.removeListener('update:found', handler);
+  },
+
   onProgress: (cb) => {
     const handler = (_e, payload) => cb(payload);
     ipcRenderer.on('catalog:progress', handler);

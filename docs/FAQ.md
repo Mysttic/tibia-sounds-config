@@ -86,9 +86,24 @@ Mozesz tez dodac wlasne zrodlo albo wkleic bezposredni link do pliku. Wtedy
 odpowiedzialnosc za sprawdzenie licencji i regulaminu tej strony jest po Twojej stronie.
 
 **Kiedy aplikacja laczy sie z internetem?**
-Tylko gdy sam klikniesz *Szukaj*, *Wygeneruj* albo *Uzyj*. Zadnego odpytywania w tle,
-sprawdzania aktualizacji ani statystyk. Lista odpytywanych adresow:
+Tylko gdy sam klikniesz *Szukaj*, *Wygeneruj*, *Uzyj* albo *Sprawdz aktualizacje*.
+Zadnej telemetrii i zadnych statystyk. Jedyne odpytywanie w tle to sprawdzanie wersji,
+ktore domyslnie jest wylaczone i wlaczasz je sam. Lista adresow:
 [JAK_TO_DZIALA.md](JAK_TO_DZIALA.md#kiedy-aplikacja-laczy-sie-z-internetem).
+
+**Jak zaktualizowac aplikacje bez pobierania instalatora recznie?**
+Menu **&#8943;** &rarr; *Sprawdz aktualizacje*. Jesli wyszlo nowsze wydanie, aplikacja
+pokaze pasek nad lista i po Twoim potwierdzeniu pobierze instalator, sprawdzi jego
+sume SHA-256 i uruchomi go, zamykajac sie na czas instalacji. Obok jest przelacznik
+*Sprawdzaj sam*, ktory kaze pytac raz na dobe przy starcie; domyslnie jest wylaczony.
+Podmianki, kopie oryginalow i ustawienia przezywaja aktualizacje, bo instalator wgrywa
+sie w to samo miejsce i nie rusza katalogu `%APPDATA%`.
+
+**Mam wersje portable i nie widze przycisku instalacji.**
+Tak ma byc. Instalator wgralby druga kopie obok, a katalog, z ktorego program chodzi,
+zostalby stary. Aplikacja powie, ze jest nowsza wersja, i da odsylacz do strony wydania,
+skad pobierzesz nowy plik portable sam. Szczegoly:
+[JAK_TO_DZIALA.md](JAK_TO_DZIALA.md#aktualizacje-z-poziomu-aplikacji).
 
 ## Instalacja
 
