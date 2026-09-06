@@ -1,12 +1,12 @@
-# Architektura
+# Architecture
 
-## Procesy
+## Processes
 
 ```
-                 proces glowny (electron/main.js)
-                 - jedyny z dostepem do dysku i do ffmpega
-                 - rejestruje protokol tsound://
-                 - trzyma stan: client, vault, profile, catalog
+                 main process (electron/main.js)
+                 - the only one with disk and ffmpeg access
+                 - registers the tsound:// protocol
+                 - holds state: client, vault, profile, catalog
                           |
                     IPC (ipcMain.handle)
                           |
@@ -15,120 +15,119 @@
                  - contextIsolation: true, nodeIntegration: false
                           |
                  renderer (renderer/app.js)
-                 - tabela, filtry, odtwarzanie
-                 - zero dostepu do node
+                 - table, filters, playback
+                 - no access to node
 ```
 
-Renderer nie widzi `require`, `fs` ani `path`. Wszystko, co dotyka dysku, przechodzi
-przez nazwane kanaly IPC wypisane w `preload.js`. CSP w `renderer/index.html` dopuszcza
-media tylko z `tsound:`.
+The renderer cannot see `require`, `fs` or `path`. Everything that touches the disk goes
+through the named IPC channels listed in `preload.js`. The CSP in `renderer/index.html`
+allows media only from `tsound:`.
 
-## Przeplyw danych przy starcie
+## Data flow at startup
 
 ```
 app:init
-  -> detectFfmpeg()                     audio.js       czy jest ffmpeg + libvorbis
-  -> readSettings()                     main.js        zapamietana sciezka klienta
-  -> autodetect()                       clientPaths.js %LOCALAPPDATA%\Tibia itd.
+  -> detectFfmpeg()                     audio.js       is ffmpeg + libvorbis present
+  -> readSettings()                     main.js        remembered client path
+  -> autodetect()                       clientPaths.js %LOCALAPPDATA%\Tibia and friends
   -> useClient(dir)
-       -> validateClientDir(dir)        clientPaths.js szuka packages/Tibia/sounds/catalog-sound.json
+       -> validateClientDir(dir)        clientPaths.js looks for packages/Tibia/sounds/catalog-sound.json
        -> loadProfile(vault)            profile.js     vault/clients/<slug>/profile.json
        -> buildCatalog(...)             catalog.js
             -> loadSoundBank(soundsDir) soundBank.js   catalog-sound.json -> sounds-<sha256>.dat
-            -> loadEnums(clientExe)     descriptors.js deskryptor z client.exe albo snapshot
+            -> loadEnums(clientExe)     descriptors.js descriptor from client.exe or snapshot
             -> buildUsageMap(bank,enums)               soundId -> [{event, category, ref}]
-            -> sha256 kazdego pliku (pool 8, cache po size+mtime)
+            -> sha256 of every file (pool of 8, cached by size+mtime)
             -> computeStatus(...)                      original / replaced / drifted / foreign / missing
-  <- publicState()                                     leci do renderera
+  <- publicState()                                     goes to the renderer
 ```
 
-## Moduly
+## Modules
 
-| plik | odpowiedzialnosc | zaleznosci |
+| file | responsibility | dependencies |
 |---|---|---|
-| `electron/lib/protobuf.js` | czytnik wire formatu: varinty, pola, packed, skan prefiksu | brak |
+| `electron/lib/protobuf.js` | wire format reader: varints, fields, packed, prefix scan | none |
 | `electron/lib/soundBank.js` | `sounds-<sha256>.dat` -> `{sounds, numericEffects, ambienceStreams, ambienceObjectStreams, musicTemplates}` | protobuf |
-| `electron/lib/descriptors.js` | `FileDescriptorProto` z `client.exe` -> enumy; fallback na `data/enums.snapshot.json` | protobuf |
-| `electron/lib/clientPaths.js` | wykrywanie i walidacja instalacji klienta | brak |
-| `electron/lib/audio.js` | ffmpeg (konwersja, cisza) + odczyt naglowkow ogg bez ffprobe | ffmpeg w PATH |
-| `electron/lib/catalog.js` | join bank + nazwy + sha256 -> lista wpisow ze statusem, cache hashy | soundBank, descriptors, audio |
-| `electron/lib/profile.js` | vault, kopie oryginalow, apply / reset / reapply | catalog, audio |
-| `electron/lib/processes.js` | czy klient Tibii dziala (blokada zapisu) | brak |
-| `electron/lib/update.js` | porownanie wersji, dopasowanie instalatora, odczyt odpowiedzi GitHuba | brak (`fetchJson` wstrzykiwany) |
+| `electron/lib/descriptors.js` | `FileDescriptorProto` from `client.exe` -> enums; falls back to `data/enums.snapshot.json` | protobuf |
+| `electron/lib/clientPaths.js` | detecting and validating a client installation | none |
+| `electron/lib/audio.js` | ffmpeg (conversion, silence) + reading ogg headers without ffprobe | ffmpeg in PATH |
+| `electron/lib/catalog.js` | join of bank + names + sha256 -> list of entries with status, hash cache | soundBank, descriptors, audio |
+| `electron/lib/profile.js` | vault, backups of originals, apply / reset / reapply | catalog, audio |
+| `electron/lib/processes.js` | whether the Tibia client is running (write lock) | none |
+| `electron/lib/update.js` | version comparison, installer matching, reading the GitHub response | none (`fetchJson` injected) |
 
-Zaleznosci ida w jedna strone: `protobuf` <- `soundBank`/`descriptors` <- `catalog` <- `profile`.
-Nic nie importuje `main.js`, wiec cala logika jest testowalna bez uruchamiania Electrona.
+Dependencies point one way: `protobuf` <- `soundBank`/`descriptors` <- `catalog` <- `profile`.
+Nothing imports `main.js`, so all the logic is testable without launching Electron.
 
-## Dlaczego wlasny parser protobuf
+## Why a hand-written protobuf parser
 
-Bank ma piec typow komunikatow i lacznie kilkanascie pol. Pelna biblioteka protobuf
-(`protobufjs`) to ~1 MB zaleznosci i generowanie kodu ze schematu, ktorego CipSoft
-nie publikuje, bo i tak trzeba by go odtworzyc z deskryptora. Wlasny czytnik ma
-~100 linii, nie ma zaleznosci i ignoruje nieznane pola, wiec nowsza wersja klienta
-go nie wywroci (test: `tests/soundBank.test.js`).
+The bank has five message types and a dozen or so fields in total. A full protobuf
+library (`protobufjs`) means about 1 MB of dependencies and code generation from a schema
+CipSoft does not publish, so it would have to be recovered from the descriptor anyway.
+The hand-written reader is around 100 lines, has no dependencies and ignores unknown
+fields, so a newer client version will not break it (test: `tests/soundBank.test.js`).
 
-## Skad nazwy akcji
+## Where the action names come from
 
-`client.exe` jest zbudowany z pelnym protobufem, wiec w sekcji danych siedzi
-serializowany `FileDescriptorProto` dla `sounds-common.proto`. `descriptors.js` szuka
-sekwencji `0x0a <dlugosc> "sounds-common.proto"`, po czym parsuje blob do momentu,
-w ktorym kolejne pola przestaja byc poprawne (`scanValidPrefix`), bo dlugosci blobu
-nie znamy z gory.
+`client.exe` is built with full protobuf, so its data section contains a serialized
+`FileDescriptorProto` for `sounds-common.proto`. `descriptors.js` looks for the sequence
+`0x0a <length> "sounds-common.proto"` and then parses the blob until the following fields
+stop being valid (`scanValidPrefix`), because the blob length is not known up front.
 
-Efekt: nazwy pochodza ze *wskazanej* instalacji, wiec nowa wersja klienta z nowymi
-dzwiekami dostaje nazwy automatycznie. Gdy skan zawiedzie, wchodzi
-`data/enums.snapshot.json` (klient 15.32.df7b29) i pasek gorny pokazuje "nazwy ze snapshotu".
+The effect: names come from the *selected* installation, so a new client version with new
+sounds gets its names automatically. When the scan fails, `data/enums.snapshot.json`
+(client 15.32.df7b29) takes over and the top bar says the names come from a snapshot.
 
-## Statusy plikow
+## File statuses
 
-Nazwa `sound-<sha256>.ogg` **jest** sha256 oryginalnej tresci. Cala detekcja stanu
-sprowadza sie do porownania hashy: bez wlasnego manifestu, bez pliku stanu,
-odporna na to, ze ktos grzebal w plikach recznie.
+The name `sound-<sha256>.ogg` **is** the sha256 of the original content. The whole state
+detection comes down to comparing hashes: no manifest of our own, no state file, and it
+survives someone editing the files by hand.
 
-| status | warunek |
+| status | condition |
 |---|---|
-| `original` | `sha256(plik) == hash z nazwy`, brak wpisu w profilu |
-| `replaced` | hash inny niz w nazwie, zgodny z `profile.entries[id].appliedHash` |
-| `drifted` | hash **zgodny** z nazwa, ale wpis w profilu istnieje &rarr; launcher nadpisal podmianke |
-| `foreign` | hash inny niz w nazwie i nie pochodzi z profilu |
-| `missing` | bank wymienia dzwiek, ktorego nie ma na dysku |
+| `original` | `sha256(file) == hash from the name`, no profile entry |
+| `replaced` | hash differs from the name, matches `profile.entries[id].appliedHash` |
+| `drifted` | hash **matches** the name, but a profile entry exists, so the launcher overwrote the replacement |
+| `foreign` | hash differs from the name and does not come from the profile |
+| `missing` | the bank lists a sound that is not on disk |
 
 ## Vault
 
 ```
-vault/clients/<nazwa>-<sha1(sciezki)[0:10]>/
+vault/clients/<name>-<sha1(path)[0:10]>/
   profile.json     { version, clientRoot, entries: { "<soundId>": {...} } }
-  originals/       kopie oryginalow, nazwa = sound-<sha256>.ogg
-  library/         skonwertowane podmianki, <uuid>.ogg
-  hashcache.json   { "<plik>": { size, mtimeMs, hash } }
+  originals/       backups of originals, named sound-<sha256>.ogg
+  library/         converted replacements, <uuid>.ogg
+  hashcache.json   { "<file>": { size, mtimeMs, hash } }
 ```
 
-Slug liczony ze znormalizowanej sciezki, wiec kazda instalacja ma osobny vault i profile
-sie nie mieszaja. W trybie deweloperskim vault jest w repo (gitignore), w spakowanej
-aplikacji w `app.getPath('userData')/vault`.
+The slug is computed from the normalized path, so every installation gets its own vault
+and the profiles never mix. In development the vault lives in the repo (gitignored); in
+the packaged app it is under `app.getPath('userData')/vault`.
 
-Kopie trzymamy lokalnie, bo pobranie oryginalu z CDN nie wchodzi w gre:
-`https://static.tibia.com/launcher/assets-current/sounds/...` zwraca HTTP 403
-(Cloudflare challenge). Drugie zrodlo oryginalu to reczny backup w konwencji
-`___sound-<sha256>.ogg` lezacy obok podmianki. Rozpoznaje go `profile.js`.
+Backups are kept locally because fetching the original from the CDN is not an option:
+`https://static.tibia.com/launcher/assets-current/sounds/...` returns HTTP 403
+(Cloudflare challenge). The second source of an original is a manual backup following the
+`___sound-<sha256>.ogg` convention placed next to the replacement. `profile.js` recognizes it.
 
-## Bezpieczenstwo operacji na plikach
+## Safety of file operations
 
-- kazda nazwa przechodzi przez `FILENAME_HASH` (`^sound-[0-9a-f]{64}\.ogg$`), wiec
-  `../` czy dowolna inna sciezka nie przejdzie
-- zapis jest atomowy: `copyFile` do `<cel>.tmp-<rand>`, potem `rename`
-- przed pierwszym nadpisaniem powstaje kopia oryginalu; bez niej `applySound` odmawia
-- zapis jest blokowany, gdy `client.exe` / `Tibia.exe` sa uruchomione (`processes.js`)
-- `assets.json`, `package.json` klienta, `.dat` i binaria nie sa ruszane
+- every name goes through `FILENAME_HASH` (`^sound-[0-9a-f]{64}\.ogg$`), so `../` or any
+  other path will not get through
+- writes are atomic: `copyFile` to `<target>.tmp-<rand>`, then `rename`
+- a backup of the original is made before the first overwrite; without it `applySound` refuses
+- writes are blocked while `client.exe` / `Tibia.exe` are running (`processes.js`)
+- `assets.json`, the client's `package.json`, `.dat` files and binaries are never touched
 
-## Protokol tsound://
+## The tsound:// protocol
 
 ```
-tsound://sound/<plik.ogg>     aktualny plik z katalogu klienta
-tsound://original/<plik.ogg>  kopia oryginalu z vaulta (podglad A/B)
+tsound://sound/<file.ogg>     the current file from the client directory
+tsound://original/<file.ogg>  the backup of the original from the vault (A/B preview)
 ```
 
-Zarejestrowany jako `standard` + `secure` + `supportFetchAPI`, obsluzony przez
-`protocol.handle` w `main.js`. Alternatywa (`file://` z wylaczonym `webSecurity`)
-otwieralaby rendererowi caly dysk. Nazwa pliku jest walidowana tym samym wzorcem
-co przy zapisie, `?v=<hash>` sluzy do omijania cache po podmianie.
+Registered as `standard` + `secure` + `supportFetchAPI`, served by `protocol.handle`
+in `main.js`. The alternative (`file://` with `webSecurity` turned off) would open the
+whole disk to the renderer. The file name is validated with the same pattern as on write,
+and `?v=<hash>` is there to bust the cache after a replacement.

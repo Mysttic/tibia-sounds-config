@@ -1,34 +1,34 @@
-name: Propozycja zmiany
-description: Pomysl na nowa funkcje albo usprawnienie
+name: Feature request
+description: An idea for a new feature or an improvement
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
       label: Problem
-      description: Czego brakuje albo co jest niewygodne. Opisz sytuacje, nie od razu rozwiazanie.
+      description: What is missing or inconvenient. Describe the situation rather than jumping to a solution.
     validations:
       required: true
 
   - type: textarea
     id: idea
     attributes:
-      label: Proponowane rozwiazanie
+      label: Proposed solution
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Rozwazane alternatywy
+      label: Alternatives considered
 
   - type: checkboxes
     id: scope
     attributes:
-      label: Czego dotyczy
+      label: What it concerns
       options:
-        - label: odczyt banku dzwiekow / nazwy akcji
-        - label: interfejs (tabela, filtry, odtwarzanie)
-        - label: podmiana / konwersja audio
-        - label: profil, vault, kopie oryginalow
-        - label: build i wydania
+        - label: reading the sound bank / action names
+        - label: the interface (table, filters, playback)
+        - label: replacement / audio conversion
+        - label: profile, vault, backups of originals
+        - label: build and releases

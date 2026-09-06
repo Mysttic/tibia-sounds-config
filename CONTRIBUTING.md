@@ -1,72 +1,74 @@
-# Praca nad projektem
+# Working on this project
 
-## Zasada numer jeden
+## Rule number one
 
-**Nie testujemy na dzialajacej instalacji Tibii.** Do testow sluzy kopia w `testclient/`.
-Aplikacja nadpisuje pliki w katalogu klienta, a pomylka na zywej instalacji oznacza
-w najlepszym razie koniecznosc weryfikacji plikow launcherem.
+**We do not test against a working Tibia installation.** Testing uses the copy in
+`testclient/`. The app overwrites files in the client directory, and a mistake on a live
+installation means, at best, having to verify the files with the launcher.
 
 ```bash
 robocopy "%LOCALAPPDATA%\Tibia" "%CD%\testclient" /E /MT:8
 ```
 
-`testclient/` jest w `.gitignore`. Nigdy nie commituj plikow klienta. `.gitignore`
-blokuje `*.ogg`, `*.dat`, `client.exe` i `packages/`, ale warto sprawdzic `git status`
-przed commitem.
+`testclient/` is in `.gitignore`. Never commit client files. `.gitignore` blocks `*.ogg`,
+`*.dat`, `client.exe` and `packages/`, but it is worth checking `git status` before committing.
 
-## Srodowisko
+## Environment
 
-- Node >= 20.11 (CI uzywa 22)
-- `ffmpeg` z enkoderem `libvorbis` w `PATH` albo sciezka w `FFMPEG_PATH`
+- Node >= 20.11 (CI uses 22)
+- `ffmpeg` with the `libvorbis` encoder in `PATH`, or a path in `FFMPEG_PATH`
 
 ```bash
 npm install
-npm start          # aplikacja
-npm test           # testy
-npm run verify     # ikona + testy, to samo co robi CI
+npm start          # the app
+npm test           # tests
+npm run verify     # icon + tests, the same thing CI runs
 ```
 
-Testy zalezne od ffmpega same sie pomijaja, gdy go nie ma; reszta (parser banku,
-deskryptory, statusy, sciezki) dziala bez niego.
+Tests that depend on ffmpeg skip themselves when it is missing; the rest (bank parser,
+descriptors, statuses, paths) works without it.
 
-## Galezie i przeplyw pracy
+## Branches and workflow
 
 ```
-feature/cos  ──PR──>  develop  ──PR──>  master  ──automat──>  GitHub Release
+feature/x  --PR-->  develop  --PR-->  master  --automatic-->  GitHub Release
 ```
 
-- `master`: wydany kod. Kazdy push tutaj uruchamia workflow release'owy;
-  publikuje tylko wtedy, gdy numer w [`VERSION.md`](VERSION.md) zostal podbity.
-- `develop`: galaz integracyjna, tu laduje codzienna praca.
-- `feature/*`, `fix/*`: galezie robocze, PR do `develop`.
+- `master`: released code. Every push here starts the release workflow, which publishes
+  only when the number in [`VERSION.md`](VERSION.md) has been bumped.
+- `develop`: the integration branch, where day-to-day work lands.
+- `feature/*`, `fix/*`: working branches, pull requests go to `develop`.
 
-PR do `develop` i do `master` uruchamia [CI](.github/workflows/ci.yml): testy na
-Windows i Linuksie plus probny build instalatora.
+Pull requests to `develop` and to `master` run [CI](.github/workflows/ci.yml): tests on
+Windows and Linux plus a trial installer build.
 
-## Konwencje
+## Conventions
 
-- Kod i komentarze po polsku bez ogonkow (spojne z reszta repo, zero problemow z kodowaniem
-  w konsoli Windows). Teksty widoczne dla uzytkownika w rendererze tak samo.
-- Komunikaty commitow w trybie rozkazujacym: `dodaj filtr statusu`, `napraw detekcje ffmpeg`.
-- Bez zaleznosci runtime. Wszystko, co aplikacja robi w trakcie dzialania, ma byc oparte
-  o wbudowane moduly Node i Electrona. `devDependencies` sa w porzadku.
-- Nowa funkcja = test. Logika bez plikow (statusy, parsery) to test jednostkowy,
-  operacje na plikach to test na fixture z `tools/make-fixture.js`.
+- **Code and comments are written in Polish without diacritics.** This is deliberate and
+  consistent with the rest of the repo: no encoding trouble in a Windows console. The same
+  goes for user-facing strings in the renderer, because the application ships with a Polish
+  interface. Documentation is in English.
+- Commit messages in the imperative: `dodaj filtr statusu`, `napraw detekcje ffmpeg`.
+- No runtime dependencies. Everything the app does while running must rest on built-in Node
+  and Electron modules. `devDependencies` are fine.
+- A new feature means a test. Logic without files (statuses, parsers) gets a unit test;
+  operations on files get a test against a fixture from `tools/make-fixture.js`.
 
-## Gdzie co jest
+## Where things are
 
-Podzial modulow i przeplyw danych: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-Format banku dzwiekow: [docs/SOUND_FORMAT.md](docs/SOUND_FORMAT.md).
-Jak testowac: [docs/TESTING.md](docs/TESTING.md).
-Jak wydac wersje: [docs/RELEASING.md](docs/RELEASING.md).
+Module split and data flow: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Sound bank format: [docs/SOUND_FORMAT.md](docs/SOUND_FORMAT.md).
+How to test: [docs/TESTING.md](docs/TESTING.md).
+How to release: [docs/RELEASING.md](docs/RELEASING.md).
 
-## Granice, ktorych nie przekraczamy
+## Boundaries we do not cross
 
-Aplikacja zapisuje wylacznie do:
+The app writes only to:
 
-- `<klient>/packages/Tibia/sounds/sound-<sha256>.ogg`, gdzie nazwa jest walidowana wzorcem,
-  wiec nie da sie wyjsc poza katalog
-- wlasnego vaulta (`vault/` w trybie deweloperskim, `userData/vault` w spakowanej aplikacji)
+- `<client>/packages/Tibia/sounds/sound-<sha256>.ogg`, where the name is validated with a
+  pattern, so there is no way out of the directory
+- its own vault (`vault/` in development, `userData/vault` in the packaged app)
 
-Nigdy nie ruszamy `assets.json`, `package.json` klienta, plikow `.dat` ani binariow.
-Jesli zmiana wymaga wyjscia poza te granice, to temat na dyskusje w issue, nie na PR.
+We never touch `assets.json`, the client's `package.json`, `.dat` files or binaries.
+If a change requires stepping outside those boundaries, that is a topic for an issue,
+not for a pull request.

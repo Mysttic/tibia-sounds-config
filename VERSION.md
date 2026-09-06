@@ -1,26 +1,26 @@
-# Wersja
+# Version
 
 1.7.0
 
 ---
 
-Ten plik jest **zrodlem prawdy** dla numeru wersji aplikacji.
+This file is the **source of truth** for the application version number.
 
-Wersja to pierwszy w pliku samodzielny numer w formacie
-[SemVer](https://semver.org/lang/pl/) (`MAJOR.MINOR.PATCH`, opcjonalnie z
-przedrostkiem `v` i sufiksem typu `-rc.1`). Dekoracje markdown wokol niego
-(naglowek, pogrubienie, punktor) sa ignorowane.
+The version is the first standalone number in the file in
+[SemVer](https://semver.org/) format (`MAJOR.MINOR.PATCH`, optionally with a `v` prefix
+and a suffix such as `-rc.1`). Markdown decoration around it (heading, bold, bullet)
+is ignored.
 
-## Jak podbic wersje
+## How to bump the version
 
-1. Zmien numer powyzej.
-2. `npm run version:sync`, ktory przepisze go do `package.json`.
-3. Dopisz sekcje `## [<wersja>]` w [`CHANGELOG.md`](CHANGELOG.md).
-4. PR `develop` &rarr; `master`. Po merge workflow sam zbuduje instalatory,
-   otaguje `v<wersja>` i opublikuje release.
+1. Change the number above.
+2. `npm run version:sync`, which copies it into `package.json`.
+3. Add a `## [<version>]` section to [`CHANGELOG.md`](CHANGELOG.md).
+4. Open a `develop` to `master` pull request. After the merge the workflow builds the
+   installers, tags `v<version>` and publishes the release.
 
-Merge do `master` **bez** podbicia tego numeru niczego nie publikuje, bo workflow
-sprawdza, czy tag `v<wersja>` juz istnieje, i konczy sie bez akcji.
+Merging to `master` **without** bumping this number publishes nothing, because the workflow
+checks whether the tag `v<version>` already exists and finishes without doing anything.
 
-CI pilnuje, zeby `VERSION.md` i `package.json` sie zgadzaly (`npm run version:check`).
-Numer stad trafia tez na pasek aplikacji i do tytulu okna.
+CI makes sure `VERSION.md` and `package.json` agree (`npm run version:check`).
+The number from here also goes into the app bar and the window title.

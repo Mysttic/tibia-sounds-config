@@ -1,15 +1,15 @@
-# Praca ze zrodlami
+# Working from source
 
-Strona dla programistow i osob, ktore chca zbudowac aplikacje samodzielnie
-zamiast ufac gotowym plikom z Releases.
+A page for developers and for anyone who would rather build the app themselves than trust
+the ready-made files from Releases.
 
-## Wymagania
+## Requirements
 
-- Node.js >= 20.11 (CI uzywa 22)
-- `ffmpeg` z enkoderem `libvorbis` w `PATH` (albo sciezka w zmiennej `FFMPEG_PATH`).
-  Bez niego dziala przegladanie i odsluch, nie dziala konwersja i wyciszanie
+- Node.js >= 20.11 (CI uses 22)
+- `ffmpeg` with the `libvorbis` encoder in `PATH` (or a path in the `FFMPEG_PATH` variable).
+  Without it, browsing and preview work; conversion and muting do not
 
-## Uruchomienie ze zrodel
+## Running from source
 
 ```bash
 git clone https://github.com/Mysttic/tibia-sounds-config.git
@@ -18,102 +18,101 @@ npm install
 npm start
 ```
 
-Albo dwuklik w `start.bat`: w katalogu zrodel doinstaluje zaleznosci i odpali
-`npm start`, a obok zainstalowanej aplikacji uruchomi `.exe`.
+Or double-click `start.bat`: in the source directory it installs the dependencies and runs
+`npm start`, and next to an installed app it launches the `.exe`.
 
-Aplikacja sama szuka klienta w `%LOCALAPPDATA%\Tibia` i `Program Files\Tibia`
-(oraz odpowiednikach na macOS/Linux). Inny katalog wskazuje sie przyciskiem-kontekstem
-na gornym pasku aplikacji (tym z nazwa i wersja klienta).
+The app looks for the client in `%LOCALAPPDATA%\Tibia` and `Program Files\Tibia`
+(and the macOS/Linux equivalents). A different directory is selected with the context
+button in the top bar, the one showing the client name and version.
 
-## Skad sie biora nazwy akcji
+## Where the action names come from
 
-Klient trzyma bank dzwiekow w protobufie, a nazwy typow w deskryptorach
-wkompilowanych w `client.exe`:
+The client keeps its sound bank in protobuf, and the type names in descriptors compiled
+into `client.exe`:
 
 ```
-<klient>/packages/Tibia/sounds/catalog-sound.json
+<client>/packages/Tibia/sounds/catalog-sound.json
    -> sounds-<sha256>.dat          (tibia.protobuf.sound.Sounds)
         Sound                      id -> "sound-<sha256>.ogg"
-        NumericSoundEffect         id == wartosc ESoundEffectType, typ == ENumericSoundType
-        AmbienceStream             petla tla + opoznione efekty
-        AmbienceObjectStream       petle zalezne od liczby obiektow na ekranie
-        MusicTemplate              muzyka
+        NumericSoundEffect         id == ESoundEffectType value, type == ENumericSoundType
+        AmbienceStream             background loop + delayed effects
+        AmbienceObjectStream       loops driven by the number of objects on screen
+        MusicTemplate              music
 
-<klient>/packages/Tibia/bin/client.exe
-   -> FileDescriptorProto dla sounds-common.proto
-        ESoundEffectType    336 nazw
-        ENumericSoundType   20 kategorii miksera
-        EMusicType          4 wartosci
+<client>/packages/Tibia/bin/client.exe
+   -> FileDescriptorProto for sounds-common.proto
+        ESoundEffectType    336 names
+        ENumericSoundType   20 mixer categories
+        EMusicType          4 values
 ```
 
-Nazwy sa czytane z **wskazanej** instalacji, wiec nowsze wersje klienta dostaja
-nowe nazwy automatycznie. Gdy skan `client.exe` sie nie uda, aplikacja wraca do
-`data/enums.snapshot.json` (snapshot z klienta 15.32.df7b29) i sygnalizuje to
-w pasku. Pelny opis formatu: [SOUND_FORMAT.md](SOUND_FORMAT.md).
+Names are read from the **selected** installation, so newer client versions get new names
+automatically. When the `client.exe` scan fails, the app falls back to
+`data/enums.snapshot.json` (a snapshot from client 15.32.df7b29) and says so in the bar.
+Full format description: [SOUND_FORMAT.md](SOUND_FORMAT.md).
 
-## Testy
+## Tests
 
 ```bash
-npm test           # caly zestaw
-npm run verify     # zgodnosc wersji + ikona + testy, to samo co CI
+npm test           # the whole suite
+npm run verify     # version match + icon + tests, the same thing CI runs
 ```
 
-Testy buduja syntetycznego mini-klienta w `%TEMP%` i przechodza pelny cykl:
-podmiana &rarr; wyciszenie &rarr; reset &rarr; drift &rarr; ponowne wgranie
-&rarr; obcy plik &rarr; reset z kopii `___`. Zadnych assetow CipSoftu w repo,
-zadnego dotykania prawdziwej instalacji. Testy zalezne od ffmpega same sie
-pomijaja, gdy go nie ma.
+The tests build a synthetic mini client in `%TEMP%` and go through the full cycle:
+replace, mute, reset, drift, reapply, foreign file, reset from a `___` backup. No CipSoft
+assets in the repo, no touching a real installation. Tests that need ffmpeg skip themselves
+when it is missing.
 
-Do testow na realnych danych sluzy **kopia** klienta w `testclient/` (gitignore):
+For testing against real data there is a **copy** of the client in `testclient/` (gitignored):
 
 ```bash
 robocopy "%LOCALAPPDATA%\Tibia" "%CD%\testclient" /E /MT:8
 ```
 
-Szczegoly i sondy CDP do testowania UI: [TESTING.md](TESTING.md).
+Details and the CDP probes for testing the UI: [TESTING.md](TESTING.md).
 
 ## Build
 
 ```bash
-npm run pack       # rozpakowana aplikacja -> dist/win-unpacked
-npm run dist:win   # instalator NSIS + portable -> dist/
+npm run pack       # unpacked app -> dist/win-unpacked
+npm run dist:win   # NSIS installer + portable -> dist/
 ```
 
-Numer wersji ma jedno zrodlo prawdy: [`VERSION.md`](../VERSION.md). Stad trafia
-do `package.json` (`npm run version:sync`), na pasek aplikacji i do tytulu okna.
+The version number has a single source of truth: [`VERSION.md`](../VERSION.md). From there
+it goes into `package.json` (`npm run version:sync`), into the app bar and into the window title.
 
-Wydanie powstaje automatycznie po merge PR-a `develop` &rarr; `master`, o ile numer
-w `VERSION.md` zostal podbity. Szczegoly i znane problemy z buildem na Windows:
+A release is produced automatically after a `develop` to `master` pull request is merged,
+provided the number in `VERSION.md` was bumped. Details and known build problems on Windows:
 [RELEASING.md](RELEASING.md).
 
-## Uklad repo
+## Repository layout
 
 ```
-electron/main.js        proces glowny: okno, IPC, protokol tsound://
-electron/preload.js     contextBridge, jedyny most do systemu plikow
+electron/main.js        main process: window, IPC, tsound:// protocol
+electron/preload.js     contextBridge, the only bridge to the file system
 electron/lib/           protobuf, soundBank, descriptors, clientPaths, catalog,
-                        audio, profile, processes
-renderer/               tabela, filtry, odtwarzanie, akcje
-data/                   enums.snapshot.json: nazwy akcji z klienta 15.32
-docs/                   dokumentacja + wygenerowane raporty
-tools/                  generator ikony, fixture, sonda CDP, skrypty RE w Pythonie
+                        audio, profile, processes, update
+renderer/               table, filters, playback, actions
+data/                   enums.snapshot.json: action names from client 15.32
+docs/                   documentation + generated reports
+tools/                  icon generator, fixtures, CDP probe, Python RE scripts
 tests/                  node --test
-build/                  zasoby buildu (icon.png generowana kodem)
+build/                  build assets (icon.png generated by code)
 ```
 
-`tools/*.py` to skrypty, ktorymi format klienta zostal rozgryziony. Nie sa
-potrzebne do dzialania aplikacji, zostaja jako slad pochodzenia i punkt
-odniesienia przy sprawdzaniu portu na JavaScript.
+`tools/*.py` are the scripts the client format was cracked with. They are not needed for
+the app to run; they stay as a record of provenance and a reference point when checking the
+JavaScript port.
 
-## Dokumentacja
+## Documentation
 
-| dokument | o czym |
+| document | about |
 |---|---|
-| [JAK_TO_DZIALA.md](JAK_TO_DZIALA.md) | co aplikacja robi z plikami, wersja dla uzytkownika |
-| [SOUND_FORMAT.md](SOUND_FORMAT.md) | format banku, enumy, statystyki, jak to ustalono |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | podzial procesow, moduly, przeplyw danych, bezpieczenstwo |
-| [TESTING.md](TESTING.md) | zestaw testow, fixture, sondy CDP |
-| [RELEASING.md](RELEASING.md) | build, wydania, znane problemy z Windows |
-| [../CONTRIBUTING.md](../CONTRIBUTING.md) | galezie, konwencje, granice projektu |
-| [sound_actions.md](sound_actions.md) | wygenerowany raport: wszystkie efekty, streamy, muzyka |
-| [sound_map.csv](sound_map.csv) | mapa plik &rarr; akcja dla klienta 15.32 |
+| [HOW_IT_WORKS.md](HOW_IT_WORKS.md) | what the app does with your files, the user-facing version |
+| [SOUND_FORMAT.md](SOUND_FORMAT.md) | bank format, enums, statistics, how it was worked out |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | process split, modules, data flow, safety |
+| [TESTING.md](TESTING.md) | the test suite, fixtures, CDP probes |
+| [RELEASING.md](RELEASING.md) | build, releases, known Windows problems |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | branches, conventions, project boundaries |
+| [sound_actions.md](sound_actions.md) | generated report: all effects, streams, music |
+| [sound_map.csv](sound_map.csv) | file to action map for client 15.32 |
