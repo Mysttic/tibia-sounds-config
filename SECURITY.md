@@ -26,8 +26,11 @@ especially interested in reports about:
 - **the network layer**: bypassing the `https` requirement, the download size limit or the
   timeout (`electron/lib/net.js`),
 - **the update path**: substituting the downloaded installer, bypassing the checksum
-  verification, or making the app run a file it did not download itself
-  (`electron/lib/update.js` and the `update:*` handlers in `electron/main.js`),
+  verification, the download host allowlist or the release tag prefix, or making the app run a
+  file it did not download itself (`electron/lib/update.js` and the `update:*` handlers in
+  `electron/main.js`). The version check reads the shared repository
+  [`Mysttic/Mysttic`](https://github.com/Mysttic/Mysttic), which holds releases of several
+  projects, so anything that lets one project's release be taken for another's belongs here,
 - **renderer isolation**: code execution in the renderer, bypassing `contextIsolation`,
   the CSP or the `preload.js` bridge,
 - **loss of user data**: scenarios where a replacement or a backup of an original can

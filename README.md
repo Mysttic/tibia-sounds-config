@@ -33,7 +33,9 @@ library, so you can apply the same sound to another entry without hunting for th
 
 ## Installation
 
-Download from [Releases](https://github.com/Mysttic/tibia-sounds-config/releases):
+Download from <https://mysttic.github.io/Mysttic/tibia-sounds-config/>, which always carries
+the newest version, or from [Releases](https://github.com/Mysttic/tibia-sounds-config/releases),
+which keeps the full history:
 
 | file | for whom |
 |---|---|
