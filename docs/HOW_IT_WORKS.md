@@ -106,7 +106,7 @@ When that happens, the app queries:
 | `api.elevenlabs.io` | only if you enable effect generation and paste your key |
 | `openrouter.ai` | only if you enable speech generation and paste your key |
 | `api.github.com` | checking whether a newer release exists |
-| `objects.githubusercontent.com` | downloading the update installer |
+| `github.com`, `objects.githubusercontent.com` | downloading the update installer |
 | an address you supply | a custom source or a pasted link |
 
 Safeguards on that path:
@@ -128,22 +128,41 @@ license at all. Where each downloaded sound came from is recorded in `profile.js
 ## Updates from inside the app
 
 The menu has *Sprawdz aktualizacje*. The app then asks GitHub's public API about the newest
-release of this project, compares the number with the version you have, and if a newer one
-exists, offers to download the installer. Next to it is a *Sprawdzaj sam* toggle,
-**off by default**: once enabled, the app will ask at most once a day, a few seconds after
-startup. The request carries nothing beyond what every https server sees, and it needs
-neither an account nor a token.
+release, compares the number with the version you have, and if a newer one exists, offers to
+download the installer. Next to it is a *Sprawdzaj sam* toggle, **off by default**: once
+enabled, the app will ask at most once a day, a few seconds after startup. The request
+carries nothing beyond what every https server sees, and it needs neither an account nor a token.
 
-What happens after you click *Pobierz i zainstaluj*:
+### Where it asks, and why it matters
+
+Releases of this project are also published to the shared site repository
+[`Mysttic/Mysttic`](https://github.com/Mysttic/Mysttic), which is what
+<https://mysttic.github.io/Mysttic/tibia-sounds-config/> shows. That repository holds one
+release per project, always the newest, and the app asks it rather than this one.
+
+That repository holds releases of several projects, so the app cannot use the "latest release"
+endpoint: it answers for the whole repository and would happily return another project's
+version number as if it were ours. Instead the app fetches the release list and keeps only the
+entries whose tag starts with `tibia-sounds-config-v`. A list with no release of ours in it
+means "nothing new", not an error.
+
+The full release history, with the complete changelog for every version, stays in this
+repository. That is also where the *Co sie zmienilo* button takes you.
+
+### What happens after you click *Pobierz i zainstaluj*
 
 1. The file address **does not come from the app window**. The main process remembers what
    it found during the last check and can download only that; the renderer has no way to
    make it fetch something from an arbitrary address.
-2. The download follows the same path as any other file from the network: `https` only, a
+2. The address is also checked against a short list of hosts (`github.com`,
+   `objects.githubusercontent.com`) before anything is fetched. It arrives over the network
+   from a repository shared with other projects, so where it points is worth verifying rather
+   than assuming.
+3. The download follows the same path as any other file from the network: `https` only, a
    size limit enforced during the transfer, a timeout.
-3. The downloaded file is checked by size and by the **SHA-256 sum** that GitHub publishes
+4. The downloaded file is checked by size and by the **SHA-256 sum** that GitHub publishes
    alongside the asset. If it does not match, the file is discarded and nothing is run.
-4. Only after your confirmation does the app run the installer silently (`/S`) and exit.
+5. Only after your confirmation does the app run the installer silently (`/S`) and exit.
    The installer knows the directory from the previous installation, so it installs into the
    same place; your settings and vault are left untouched.
 

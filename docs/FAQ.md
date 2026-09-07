@@ -104,6 +104,14 @@ SHA-256 and runs it, closing itself for the duration of the installation. Next t
 Replacements, backups of originals and settings survive the update, because the installer
 goes into the same place and does not touch the `%APPDATA%` folder.
 
+**Where can I download releases besides this repository?**
+From <https://mysttic.github.io/Mysttic/tibia-sounds-config/>, which always carries the newest
+version. That page is fed by the shared repository
+[`Mysttic/Mysttic`](https://github.com/Mysttic/Mysttic), where each release is copied right
+after it is published here, and it is also what the app asks when it checks for updates. The
+full history, with a changelog for every version, stays in this repository. Details:
+[HOW_IT_WORKS.md](HOW_IT_WORKS.md#where-it-asks-and-why-it-matters).
+
 **I use the portable build and I do not see an install button.**
 That is intended. The installer would put a second copy next to it while the directory the
 program runs from stayed old. The app will tell you a newer version exists and give you a

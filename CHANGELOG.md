@@ -9,8 +9,24 @@ not exist yet.
 
 ## [Unreleased]
 
+### Added
+
+- **Releases are copied to the shared site repository.** A `site` job in the release workflow
+  copies the three files to [`Mysttic/Mysttic`](https://github.com/Mysttic/Mysttic) under the
+  tag `tibia-sounds-config-v<version>`, which is what
+  <https://mysttic.github.io/Mysttic/tibia-sounds-config/> shows. One version stands there,
+  always the newest; the full history stays in this repository. The new release is created
+  before the older ones are removed, so the page is never empty. Needs a `HUB_TOKEN` secret.
+
 ### Changed
 
+- **The update check now reads the site repository instead of this one.** Releases of several
+  projects live there, so the "latest release" endpoint no longer fits: it answers for the
+  whole repository and would return another project's version as ours. The app fetches the
+  release list and keeps only tags starting with `tibia-sounds-config-v`. A list with none of
+  ours in it means "nothing new", not an error.
+- The *Co sie zmienilo* button still points at this repository, because the release body on the
+  site is only a name, a number and a page address, while the full changelog lives here.
 - All documentation translated into English: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`,
   `VERSION.md`, `CHANGELOG.md`, everything under `docs/`, the issue templates and the pull
   request template. `docs/JAK_TO_DZIALA.md` was renamed to `docs/HOW_IT_WORKS.md` and every
@@ -18,6 +34,14 @@ not exist yet.
 - The application interface stays in Polish, and so do code and comments, as
   `CONTRIBUTING.md` requires. Where the documentation refers to a button or a menu entry, it
   quotes the Polish label so it can be found on screen.
+
+### Security
+
+- The download address is checked against a host allowlist (`github.com`,
+  `objects.githubusercontent.com`) before anything is fetched. It now arrives from a repository
+  shared with other projects, so where it points is verified rather than assumed.
+- The *Co sie zmienilo* address is assembled locally from the version number rather than taken
+  from the API response, so a tampered `html_url` cannot send `shell.openExternal` anywhere.
 
 ## [1.7.0] - 2026-09-06
 
