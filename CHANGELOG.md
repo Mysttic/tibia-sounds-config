@@ -9,6 +9,8 @@ not exist yet.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-07
+
 ### Added
 
 - **Releases are copied to the shared site repository.** A `site` job in the release workflow
@@ -453,7 +455,8 @@ The first release.
 - Writes only to `<client>/packages/Tibia/sounds/*.ogg` and the app's own vault; file names are
   validated with the `sound-<64 hex>.ogg` pattern, so there is no way out of the sounds directory.
 
-[Unreleased]: https://github.com/Mysttic/tibia-sounds-config/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/Mysttic/tibia-sounds-config/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/Mysttic/tibia-sounds-config/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/Mysttic/tibia-sounds-config/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/Mysttic/tibia-sounds-config/releases/tag/v1.6.1
 
