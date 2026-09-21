@@ -1,12 +1,48 @@
 name: CI
 
-# Kazdy PR (do develop i do master) oraz kazdy push na develop.
-# Master dostaje osobny workflow release'owy, ktory tez odpala testy przed buildem.
+# Testy odpalaja sie WYLACZNIE przy Pull Requescie z `develop` do `master`.
+# Push na `develop`, push na dowolna inna galaz i PR-y celujace w `develop`
+# nie uruchamiaja juz niczego - konto ma wyczerpany limit minut Actions,
+# a kazdy przebieg na `windows-latest` liczy sie podwojnie.
+#
+# GitHub nie potrafi filtrowac po galezi ZRODLOWEJ w bloku `on:` - `branches:`
+# przy `pull_request` dotyczy wylacznie galezi docelowej (base). Head jest
+# wiec sprawdzany warunkiem `if:` na jobie.
+#
+# Swiadomie przyjeta konsekwencja: PR do `master` z galezi innej niz `develop`
+# NIE uruchomi zadnego joba, a GitHub zaraportuje taki przebieg jako ZIELONY
+# (pominiety job liczy sie jako sukces). To jest wybor, nie przeoczenie -
+# zadnego joba-zaslepki, ktory robilby z tego czerwony wynik, tu nie ma.
+#
+# To samo dotyczy `paths-ignore`: PR zmieniajacy wylacznie dokumentacje w ogole
+# nie utworzy przebiegu. Gdyby job `Testy` byl kiedys wymaganym statusem
+# (required check) na `master`, taki PR utknie w stanie oczekiwania - wtedy
+# trzeba zdjac wymagalnosc albo zrezygnowac z `paths-ignore`.
+#
+# `paths-ignore` wymienia konkretne pliki dokumentacji zamiast wzorca `**.md`,
+# bo `paths-ignore` nie ma negacji. VERSION.md i CHANGELOG.md MUSZA uruchamiac
+# CI, mimo ze to pliki .md: VERSION.md jest zrodlem numeru wersji (pilnuje go
+# `npm run version:check` i tests/version.test.js), a sekcji dla tej wersji
+# w CHANGELOG.md pilnuje tests/changelog.test.js. PR wydawniczy develop ->
+# master to czesto dokladnie te dwa pliki i nic wiecej - wzorzec `**.md`
+# kasowalby przebieg tam, gdzie jest najbardziej potrzebny, a rozjazd wersji
+# wychodzilby dopiero w guardzie release.yml, juz po merge'u na `master`.
+#
+# Konfiguracja pakowania (electron-builder.yml, build/, pola pakujace
+# w package.json) nie jest sprawdzana na zadnym PR-ze: job `Probny build
+# instalatora` chodzi wylacznie recznie, a `Testy` nie dotykaja
+# electron-buildera. PR ruszajacy te pliki odpal najpierw recznie
+# (Actions -> CI -> Run workflow), inaczej electron-builder zobaczy zmiane
+# dopiero w release.yml, na `master`, za pelne platne minuty Windowsa.
 on:
   pull_request:
-    branches: [develop, master]
-  push:
-    branches: [develop]
+    branches: [master]
+    paths-ignore:
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'SECURITY.md'
+      - 'docs/**'
+      - '.github/**.md'
   workflow_dispatch:
 
 permissions:
@@ -18,15 +54,15 @@ concurrency:
 
 jobs:
   test:
-    name: Testy (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # windows-latest to platforma docelowa; ubuntu pilnuje, zeby nic nie
-        # zaszyto na sztywno pod Windows (sciezki, separatory) - przyda sie,
-        # gdy dojdzie build dla Linuksa.
-        os: [windows-latest, ubuntu-latest]
+    name: Testy
+    # `github.head_ref` jest puste dla `workflow_dispatch`, stad pierwszy czlon.
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'develop'
+    # Windows to platforma docelowa (electron-builder --win, ffmpeg z libvorbis
+    # na tym samym systemie, na ktory wydajemy). Noga ubuntowa byla zapasem pod
+    # build linuksowy, ktorego nie ma - w release.yml wpisy linux/mac sa
+    # zakomentowane - wiec placila za platforme, na ktora nic nie wychodzi.
+    runs-on: windows-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -36,15 +72,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Instalacja ffmpeg (Windows)
-        if: runner.os == 'Windows'
+      - name: Instalacja ffmpeg
         run: choco install ffmpeg --no-progress -y
-
-      - name: Instalacja ffmpeg (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
 
       - name: Sprawdzenie ffmpeg
         run: ffmpeg -hide_banner -encoders | grep libvorbis
@@ -67,10 +96,15 @@ jobs:
 
       - run: npm test
 
+  # Probny build instalatora to pelny electron-builder na Windowsie (2x), ktorego
+  # wynik i tak byl wyrzucany - prawdziwy instalator powstaje w release.yml.
+  # Zostaje wylacznie jako opcja reczna, do sprawdzenia, czy paczka sie sklada.
   package:
     name: Probny build instalatora
     needs: test
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 

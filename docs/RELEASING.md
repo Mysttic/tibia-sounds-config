@@ -13,8 +13,9 @@ Merging a `develop` to `master` pull request triggers the
    release before anything is built)
 2. reads the version from `VERSION.md` and checks whether the tag `v<version>` already exists
 3. **if it does, finishes without publishing** (merging a documentation fix breaks nothing)
-4. if it does not, runs the tests, builds the installers, creates the tag and the GitHub
-   Release with the text from `CHANGELOG.md`
+4. if it does not, builds the installers, creates the tag and the GitHub Release with the
+   text from `CHANGELOG.md` (the tests are not repeated here: the same tree ran through CI
+   on the pull request)
 
 The practical consequence: **a release is a version bump in `VERSION.md` in a pull request
 to master.**
@@ -65,6 +66,12 @@ was in the repo at build time.
 When the same number has to be released again (for example when an artifact failed to
 build), use `workflow_dispatch` with the **force** option, which overwrites the tag and
 the release.
+
+If the `release` job itself fails (for example `CHANGELOG.md` has no `## [<version>]`
+section for `changelog-section.js`), re-run it **the same day**. The installers travel from
+the Windows `build` job to `release` as a run artifact kept for one day only, so a later
+*Re-run failed jobs* finds nothing to download and the whole workflow has to be repeated,
+including the paid ~30-minute Windows build.
 
 ## The copy to the site
 
@@ -212,6 +219,11 @@ pass them from repository secrets and drop `CSC_IDENTITY_AUTO_DISCOVERY: false`.
 
 - [ ] `npm run verify` passes locally
 - [ ] the version in `package.json` is bumped
+- [ ] a pull request touching `electron-builder.yml`, `build/` or the packaging fields of
+      `package.json`: run the CI workflow manually first (*Actions, CI, Run workflow*), so
+      the `Probny build instalatora` job packages the tree before the merge. No pull request
+      runs electron-builder on its own, so without that manual run packaging config reaches
+      `master` unexercised and breaks first in the release build
 - [ ] `CHANGELOG.md` has a section for this version
 - [ ] `npm run pack` assembles, the app from `dist/win-unpacked` starts and loads a client
 - [ ] tested against `testclient/`, not against a working installation
