@@ -39,8 +39,14 @@ feature/x  --PR-->  develop  --PR-->  master  --automatic-->  GitHub Release
 - `develop`: the integration branch, where day-to-day work lands.
 - `feature/*`, `fix/*`: working branches, pull requests go to `develop`.
 
-Pull requests to `develop` and to `master` run [CI](.github/workflows/ci.yml): tests on
-Windows and Linux plus a trial installer build.
+Only a `develop` to `master` pull request runs [CI](.github/workflows/ci.yml): the tests on
+Windows. Pushes to `develop` and pull requests aimed at `develop` run nothing, and the trial
+installer build is a manual `workflow_dispatch` option. A pull request that touches only
+`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `docs/**` or the Markdown files under
+`.github/` does not start a run either. `VERSION.md` and `CHANGELOG.md` are deliberately
+kept off that list even though they are Markdown: they are the release gate, so a release
+pull request, which often changes nothing else, still runs the tests. The Actions minutes
+on this account are capped, so CI pays only for the merge into `master`.
 
 ## Conventions
 

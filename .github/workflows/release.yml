@@ -26,6 +26,7 @@ jobs:
   guard:
     name: Czy jest co wydawac
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.check.outputs.version }}
       tag: ${{ steps.check.outputs.tag }}
@@ -59,27 +60,17 @@ jobs:
             echo "::notice::Wydaje ${TAG}"
           fi
 
-  test:
-    name: Testy przed wydaniem
-    needs: guard
-    if: needs.guard.outputs.should_release == 'true'
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: choco install ffmpeg --no-progress -y
-      - run: npm ci
-      - run: npm run icon
-      - run: npm test
-
+  # Testow nie ma tu osobno: dokladnie to samo drzewo przechodzi pelny zestaw
+  # w ci.yml na PR-ze `develop` -> `master` tuz przed merge'em, a powtorka
+  # kosztowala ~16-24 platne minuty na Windowsie przy kazdym wydaniu.
+  # Wydanie z galezi, ktora nie przeszla przez taki PR, nie jest testowane -
+  # przyjeta swiadomie razem z reszta ciecia minut.
   build:
     name: Build ${{ matrix.name }}
-    needs: [guard, test]
+    needs: guard
     if: needs.guard.outputs.should_release == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     # Potrzebne do wystawienia poswiadczenia pochodzenia (build provenance):
     # kryptograficznego dowodu, ze dany plik powstal z tego commita w tym repo.
     # Nie zastepuje podpisu kodu, ale pozwala zweryfikowac plik przez `gh attestation verify`.
@@ -88,7 +79,8 @@ jobs:
       id-token: write
       attestations: write
     strategy:
-      fail-fast: false
+      # `fail-fast: false` nic tu nie robi, bo aktywny jest jeden wpis matrycy.
+      # Przywroc je razem z kolejna platforma.
       matrix:
         # Zeby dolozyc kolejna platforme, wystarczy dopisac wpis tutaj -
         # electron-builder.yml ma juz gotowe sekcje `linux` i `mac`.
@@ -137,18 +129,29 @@ jobs:
         with:
           subject-path: ${{ matrix.artifacts }}
 
+      # To nie jest raport, tylko jedyny sposob, w jaki wynik buildu z Windowsa
+      # dociera do joba `release` (download-artifact) - bez tego kroku nie ma
+      # z czego zlozyc wydania. Plik jest odbierany kilka minut pozniej w tym
+      # samym przebiegu, wiec retencja schodzi do minimum: 1 dzien zamiast 7.
+      #
+      # Konsekwencja krotkiej retencji: jesli padnie job `release`, przycisk
+      # "Re-run failed jobs" pomoze wylacznie tego samego dnia. Pozniej artefakt
+      # juz wygasl, download-artifact nie ma czego pobrac i trzeba powtorzyc caly
+      # przebieg razem z platnym, ~30-minutowym buildem na Windowsie.
+      # Opisane w docs/RELEASING.md.
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.name }}
           path: ${{ matrix.artifacts }}
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   release:
     name: Publikacja GitHub Release
     needs: [guard, build]
     if: needs.guard.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -242,6 +245,7 @@ jobs:
     needs: [guard, release]
     if: needs.guard.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       HUB: Mysttic/Mysttic
       PROJECT: tibia-sounds-config
