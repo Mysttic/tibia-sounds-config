@@ -6,13 +6,15 @@ The version number has a single source of truth: [`VERSION.md`](../VERSION.md).
 `package.json` only repeats it, because electron-builder uses it to name the artifacts.
 `npm run version:check` in CI guards that the two agree.
 
-Merging a `develop` to `master` pull request triggers the
-[Release](../.github/workflows/release.yml) workflow, which:
+Merging a `develop` to `master` pull request that changes `VERSION.md` triggers the
+[Release](../.github/workflows/release.yml) workflow (a merge that leaves `VERSION.md`
+untouched starts no run at all), which:
 
 1. checks that `VERSION.md` and `package.json` carry the same number (a mismatch stops the
    release before anything is built)
 2. reads the version from `VERSION.md` and checks whether the tag `v<version>` already exists
-3. **if it does, finishes without publishing** (merging a documentation fix breaks nothing)
+3. **if it does, finishes without publishing** (a `VERSION.md` change without a new number
+   overwrites nothing)
 4. if it does not, builds the installers, creates the tag and the GitHub Release with the
    text from `CHANGELOG.md` (the tests are not repeated here: the same tree ran through CI
    on the pull request)
@@ -67,11 +69,19 @@ When the same number has to be released again (for example when an artifact fail
 build), use `workflow_dispatch` with the **force** option, which overwrites the tag and
 the release.
 
-If the `release` job itself fails (for example `CHANGELOG.md` has no `## [<version>]`
-section for `changelog-section.js`), re-run it **the same day**. The installers travel from
+If the `release` job itself fails because of something outside the repository's files (a
+network error, a token problem), re-run it **the same day**. The installers travel from
 the Windows `build` job to `release` as a run artifact kept for one day only, so a later
 *Re-run failed jobs* finds nothing to download and the whole workflow has to be repeated,
 including the paid ~30-minute Windows build.
+
+A re-run does not help when the cause is in the files (for example `CHANGELOG.md` has no
+`## [<version>]` section for `changelog-section.js`, or `package.json` does not match
+`VERSION.md`): it runs the same commit again and fails the same way. Fix it through the usual
+pull request, but note that **a merge to `master` that does not change `VERSION.md` starts
+no run**, and that includes a fix merged after a failed release. To release it, use
+*Actions, Release, Run workflow* on `master`: without **force** if the tag `v<version>` was
+never created, with **force** if it was.
 
 ## The copy to the site
 
