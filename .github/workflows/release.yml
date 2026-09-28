@@ -1,13 +1,32 @@
 name: Release
 
-# Wydanie leci automatycznie po merge PR-a develop -> master.
-# Numer wersji pochodzi z VERSION.md (package.json tylko go powtarza - zgodnosc
-# sprawdza `npm run version:check`). Jesli tag v<wersja> juz istnieje, workflow
-# konczy sie bez publikacji - dzieki temu merge bez podbicia wersji (np. poprawka
-# dokumentacji) niczego nie nadpisuje ani nie wywala buildu.
+# Wydanie leci automatycznie po merge PR-a develop -> master, ktory zmienia
+# VERSION.md. Numer wersji pochodzi z VERSION.md (package.json tylko go
+# powtarza - zgodnosc sprawdza `npm run version:check`). Jesli tag v<wersja>
+# juz istnieje, workflow konczy sie bez publikacji - dzieki temu zmiana w
+# VERSION.md bez podbicia numeru niczego nie nadpisuje ani nie wywala buildu.
 on:
   push:
     branches: [master]
+    # Filtr na plik wersji: guard (`node tools/version.js`) czyta numer wylacznie
+    # z VERSION.md, wiec push na `master`, ktory tego pliku nie rusza, i tak nie
+    # moglby niczego wydac - a bez filtra kazdy merge (dokumentacja, zaleznosci,
+    # poprawki) uruchamial runner tylko po to, zeby guard stwierdzil "nic do
+    # wydania". Konto ma wyczerpany limit minut, a kazdy job to minimum 1 minuta.
+    #
+    # Konsekwencje:
+    # - push/merge bez zmiany VERSION.md nie startuje NICZEGO (brak przebiegu),
+    # - package.json celowo NIE jest na liscie: zmiana zaleznosci to nie wydanie,
+    #   a rozjazd numerow z VERSION.md lapie CI na PR-ze (`version:check`),
+    # - plik tego workflowa tez NIE jest na liscie - zmiany w nim wchodza w zycie
+    #   przy najblizszym wydaniu (podbiciu VERSION.md). Reczny Run workflow bez
+    #   `force` przy istniejacym tagu wykonuje tylko guard i niczego wiecej nie
+    #   sprawdza; `force` publikuje naprawde,
+    # - ponowienie wydania (np. po poprawce na `master` bez podbicia numeru, albo
+    #   gdy publikacja padla) -> Actions -> Release -> Run workflow; z opcja
+    #   `force`, jesli tag v<wersja> juz istnieje.
+    paths:
+      - 'VERSION.md'
   workflow_dispatch:
     inputs:
       force:
@@ -15,8 +34,12 @@ on:
         type: boolean
         default: false
 
+# `actions: write` - tylko do skasowania artefaktu-transportu na koncu joba
+# `release` (patrz krok "Usun artefakty tego przebiegu"). Job `build` ma
+# wlasny blok `permissions:`, ktory ten zastepuje w calosci.
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -133,6 +156,8 @@ jobs:
       # dociera do joba `release` (download-artifact) - bez tego kroku nie ma
       # z czego zlozyc wydania. Plik jest odbierany kilka minut pozniej w tym
       # samym przebiegu, wiec retencja schodzi do minimum: 1 dzien zamiast 7.
+      # Po udanej publikacji job `release` kasuje go od razu (krok "Usun
+      # artefakty tego przebiegu"), wiec pelna dobe lezy tylko po porazce.
       #
       # Konsekwencja krotkiej retencji: jesli padnie job `release`, przycisk
       # "Re-run failed jobs" pomoze wylacznie tego samego dnia. Pozniej artefakt
@@ -233,6 +258,24 @@ jobs:
             --title "$TAG" \
             --notes-file RELEASE_NOTES.md \
             artifacts/*
+
+      # Instalatory sa juz w GitHub Release (job `site` pobiera je stamtad, nie
+      # z artefaktu), wiec artefakt-transport tylko zajmowalby Actions storage.
+      # `success()`: gdy publikacja padnie, artefakt zostaje na dobe dla
+      # "Re-run failed jobs". `continue-on-error`: nieudane sprzatanie nigdy nie
+      # moze wywrocic wydania - artefakt i tak wygasnie po 1 dniu.
+      # Wymaga `actions: write` (blok `permissions:` na gorze pliku).
+      # `shell: bash` wlacza `-o pipefail`: bez niego nieudane listowanie
+      # artefaktow konczy sie cichym sukcesem `xargs -r` zamiast ostrzezenia.
+      - name: Usun artefakty tego przebiegu
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq '.artifacts[].id' \
+            | xargs -r -I{} gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/{}"
 
   # Kopia wydania do repozytorium serwisu (https://mysttic.github.io/Mysttic/).
   # Leza tam wydania kilku projektow, po jednym, najnowszym z kazdego, i stamtad

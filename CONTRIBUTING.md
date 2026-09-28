@@ -34,8 +34,9 @@ descriptors, statuses, paths) works without it.
 feature/x  --PR-->  develop  --PR-->  master  --automatic-->  GitHub Release
 ```
 
-- `master`: released code. Every push here starts the release workflow, which publishes
-  only when the number in [`VERSION.md`](VERSION.md) has been bumped.
+- `master`: released code. A push here that changes [`VERSION.md`](VERSION.md) starts the
+  release workflow, which publishes only when the number has been bumped; any other push
+  starts nothing.
 - `develop`: the integration branch, where day-to-day work lands.
 - `feature/*`, `fix/*`: working branches, pull requests go to `develop`.
 
