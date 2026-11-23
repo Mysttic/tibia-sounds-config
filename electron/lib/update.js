@@ -3,15 +3,19 @@
 /**
  * Sprawdzanie, czy wyszlo nowsze wydanie.
  *
- * Wydania trafiaja do wspolnego repozytorium serwisu (`Mysttic/Mysttic`), gdzie
- * lezy po jednym, najnowszym wydaniu kazdego projektu. Aplikacja pyta wlasnie
- * tamto repozytorium, a nie wlasne, zeby sprawdzanie wersji dzialalo tak samo
- * we wszystkich projektach i przetrwalo ewentualna zmiane widocznosci repo
- * z kodem.
+ * Aplikacja pyta publiczne API GitHuba o wydania tego repozytorium
+ * (`Mysttic/tibia-sounds-config`) i bierze najnowsze z tagiem `v<wersja>`, czyli
+ * takim, jaki zaklada workflow `Release`. Zapytanie idzie bez tokenu, wiec dziala
+ * tylko wtedy, gdy repozytorium jest publiczne.
  *
- * Konsekwencja: w jednym repozytorium leza wydania kilku projektow, wiec
- * `/releases/latest` sie nie nadaje (oddalby wydanie cudzego projektu). Filtrujemy
- * po prefiksie taga i bierzemy pierwsze z listy, bo API zwraca je od najnowszych.
+ * Pytamy o liste, a nie o `/releases/latest`, i bierzemy pierwsze pasujace, bo API
+ * zwraca wydania od najnowszych. Wydanie z tagiem w innym ukladzie zostaje wtedy
+ * pominiete, zamiast przeslonic prawdziwe.
+ *
+ * Kopie 1.8.0 pytaja zamiast tego osobne repozytorium serwisu (hub) o tagi
+ * `tibia-sounds-config-v<wersja>`. Hub nie dostaje juz wydan i ostatnim zostaje
+ * tam 1.8.0, wiec taka kopie trzeba raz zaktualizowac recznie, do 1.9.0 albo
+ * nowszej.
  *
  * Domyslnie aplikacja nie pyta wcale: albo klikasz "Sprawdz aktualizacje" w menu,
  * albo sam wlaczasz automatyczne sprawdzanie.
@@ -21,20 +25,14 @@
  * w `main.js`, bo wymagaja procesu glownego.
  */
 
-/** Repozytorium z kodem. Stad biora sie opisy wydan pokazywane uzytkownikowi. */
+/** Repozytorium z kodem i z wydaniami: stad biora sie wersje, opisy i pliki. */
 const REPO = 'Mysttic/tibia-sounds-config';
 
-/** Repozytorium serwisu: jedno miejsce z wydaniami wszystkich projektow. */
-const HUB = 'Mysttic/Mysttic';
+/** Workflow `Release` taguje wydania jako `v<wersja>`. */
+const TAG_PREFIX = 'v';
 
-const PROJECT = 'tibia-sounds-config';
-
-/** Bez prefiksu zobaczylibysmy wydanie innego projektu jako swoje. */
-const TAG_PREFIX = `${PROJECT}-v`;
-
-const RELEASES_API = `https://api.github.com/repos/${HUB}/releases?per_page=30`;
+const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=30`;
 const RELEASES_PAGE = `https://github.com/${REPO}/releases`;
-const SITE_PAGE = 'https://mysttic.github.io/Mysttic/tibia-sounds-config/';
 
 /** Co ile aplikacja pyta sama, gdy wlaczysz automatyczne sprawdzanie. */
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -50,14 +48,15 @@ const CHECK_TIMEOUT_MS = 10_000;
 const MAX_INSTALLER_BYTES = 200 * 1024 * 1024;
 
 /**
- * Skad wolno pobierac instalator.
+ * Skad wolno pobierac instalator: wylacznie z plikow wydan tego repozytorium.
  *
- * Adres przychodzi teraz z repozytorium, w ktorym leza tez wydania innych
- * projektow, wiec zanim cokolwiek pobierzemy, sprawdzamy, czy host w ogole
- * nalezy do GitHuba. `assertHttps` w warstwie sieciowej pilnuje protokolu,
- * to pilnuje miejsca.
+ * Adres przychodzi z sieci, wiec zanim cokolwiek pobierzemy, sprawdzamy, czy
+ * wskazuje dokladnie to miejsce, a nie tylko dowolny adres na GitHubie.
+ * `assertHttps` w warstwie sieciowej pilnuje protokolu, to pilnuje miejsca.
+ * Dalej github.com sam przekierowuje pobranie na swoj serwer plikow, wiec
+ * sprawdzamy pierwszy adres, ten z odpowiedzi API.
  */
-const DOWNLOAD_HOSTS = new Set(['github.com', 'objects.githubusercontent.com']);
+const DOWNLOAD_PREFIX = `https://github.com/${REPO}/releases/download/`;
 
 const API_HEADERS = {
   Accept: 'application/vnd.github+json',
@@ -92,12 +91,15 @@ function compareVersions(a, b) {
   return 0;
 }
 
-/** `tibia-sounds-config-v1.7.0` -> `1.7.0`. */
+/**
+ * `v1.9.0` -> `1.9.0`. Za `v` musi stac numer w tym samym ukladzie co w VERSION.md:
+ * tag, ktory tylko zaczyna sie na `v`, to nie jest nasze wydanie.
+ */
 function versionFromTag(tag) {
   const t = String(tag ?? '').trim();
   if (!t.startsWith(TAG_PREFIX)) return null;
-  const reszta = t.slice(TAG_PREFIX.length).trim();
-  return reszta || null;
+  const reszta = t.slice(TAG_PREFIX.length);
+  return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(reszta) ? reszta : null;
 }
 
 /**
@@ -120,10 +122,15 @@ function parseDigest(digest) {
   return m ? m[1].toLowerCase() : null;
 }
 
+/**
+ * Porownujemy adres po przejsciu przez `URL`, a nie surowy tekst. Parser rozwija
+ * `..` (takze zapisane jako `%2e%2e`) i normalizuje host, a dopisany login albo
+ * port zmienia poczatek adresu, wiec nic z tego nie wyprowadzi pobrania poza pliki
+ * wydan tego repozytorium.
+ */
 function allowedDownload(url) {
   try {
-    const u = new URL(url);
-    return u.protocol === 'https:' && DOWNLOAD_HOSTS.has(u.host);
+    return new URL(url).href.startsWith(DOWNLOAD_PREFIX);
   } catch {
     return false;
   }
@@ -131,8 +138,8 @@ function allowedDownload(url) {
 
 /**
  * Zasob o dokladnie tej nazwie. Zwraca `null` rowniez wtedy, gdy adres nie
- * wyglada na adres GitHuba: wolimy powiedziec "to wydanie nie ma instalatora"
- * i odeslac na strone, niz pobrac cokolwiek spod obcego hosta.
+ * wskazuje plikow wydan tego repozytorium: wolimy powiedziec "to wydanie nie ma
+ * instalatora" i odeslac na strone, niz pobrac cokolwiek spod innego adresu.
  */
 function pickAsset(assets, wanted) {
   for (const a of Array.isArray(assets) ? assets : []) {
@@ -150,9 +157,10 @@ function pickAsset(assets, wanted) {
 }
 
 /**
- * Najnowsze wydanie tego projektu z listy zwroconej przez API.
+ * Najnowsze wydanie z listy zwroconej przez API.
  *
- * Szkic i wydanie kandydujace to nie jest cos, co ktos ma dostac z automatu.
+ * Szkic i wydanie kandydujace to nie jest cos, co ktos ma dostac z automatu,
+ * a tag w innym ukladzie niz `v<wersja>` to nie nasze wydanie.
  * Lista bez naszego wydania oznacza "nic nowego", a nie blad.
  */
 function pickLatest(lista) {
@@ -204,9 +212,8 @@ async function fetchLatestRelease({
     release: {
       version: rel.version,
       publishedAt: typeof rel.published_at === 'string' ? rel.published_at : null,
-      // Opis wydania na hubie to sam numer i adres strony, wiec po "co sie zmienilo"
-      // odsylamy do naszego repozytorium. Adres skladamy z numeru wersji, a nie
-      // z pola w odpowiedzi: dzieki temu nie otwieramy niczego, co przyszlo z sieci.
+      // Adres "co sie zmienilo" skladamy z numeru wersji, a nie z pola `html_url`
+      // w odpowiedzi: dzieki temu nie otwieramy niczego, co przyszlo z sieci.
       pageUrl: `https://github.com/${REPO}/releases/tag/v${rel.version}`,
       asset: pickAsset(rel.assets, installerNameFor(rel.version)),
     },
@@ -215,16 +222,13 @@ async function fetchLatestRelease({
 
 module.exports = {
   REPO,
-  HUB,
-  PROJECT,
   TAG_PREFIX,
   RELEASES_API,
   RELEASES_PAGE,
-  SITE_PAGE,
   CHECK_INTERVAL_MS,
   CHECK_TIMEOUT_MS,
   MAX_INSTALLER_BYTES,
-  DOWNLOAD_HOSTS,
+  DOWNLOAD_PREFIX,
   API_HEADERS,
   parseVersion,
   compareVersions,

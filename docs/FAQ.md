@@ -104,13 +104,19 @@ SHA-256 and runs it, closing itself for the duration of the installation. Next t
 Replacements, backups of originals and settings survive the update, because the installer
 goes into the same place and does not touch the `%APPDATA%` folder.
 
-**Where can I download releases besides this repository?**
-From <https://mysttic.github.io/Mysttic/tibia-sounds-config/>, which always carries the newest
-version. That page is fed by the shared repository
-[`Mysttic/Mysttic`](https://github.com/Mysttic/Mysttic), where each release is copied right
-after it is published here, and it is also what the app asks when it checks for updates. The
-full history, with a changelog for every version, stays in this repository. Details:
+**Where do I download releases?**
+From this repository's [Releases](https://github.com/Mysttic/tibia-sounds-config/releases).
+The newest one is marked *Latest*, and earlier versions stay there with their changelogs. That
+is also what the app asks when it checks for updates. Details:
 [HOW_IT_WORKS.md](HOW_IT_WORKS.md#where-it-asks-and-why-it-matters).
+
+**I have 1.8.0 and it says it is up to date, but a newer release exists.**
+1.8.0 looks for updates in a separate repository that no longer receives releases, so it never
+sees anything newer. Install 1.9.0 or newer once by hand: download the `...-setup.exe` from
+[Releases](https://github.com/Mysttic/tibia-sounds-config/releases/latest) and run it over the
+old installation, or swap the portable file. The installer goes into the same place and leaves
+replacements, backups and settings alone. From 1.9.0 on, *Sprawdz aktualizacje* finds new
+releases again. 1.7.0 asks this repository directly and finds the new release on its own.
 
 **I use the portable build and I do not see an install button.**
 That is intended. The installer would put a second copy next to it while the directory the

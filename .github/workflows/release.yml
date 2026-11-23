@@ -5,6 +5,10 @@ name: Release
 # sprawdza `npm run version:check`). Jesli tag v<wersja> juz istnieje, workflow
 # konczy sie bez publikacji - dzieki temu merge bez podbicia wersji (np. poprawka
 # dokumentacji) niczego nie nadpisuje ani nie wywala buildu.
+#
+# Wydanie powstaje tylko w tym repozytorium i stad pyta o wersje aktualizator
+# w aplikacji (electron/lib/update.js), wiec tag v<wersja> i nazwy plikow to
+# umowa z kazda zainstalowana kopia.
 on:
   push:
     branches: [master]
@@ -233,93 +237,3 @@ jobs:
             --title "$TAG" \
             --notes-file RELEASE_NOTES.md \
             artifacts/*
-
-  # Kopia wydania do repozytorium serwisu (https://mysttic.github.io/Mysttic/).
-  # Leza tam wydania kilku projektow, po jednym, najnowszym z kazdego, i stamtad
-  # pyta o wersje aktualizator w aplikacji. Pelna historia zostaje w tym repo.
-  #
-  # Kolejnosc jest istotna: nowe wydanie powstaje, zanim znikna stare, wiec strona
-  # nie jest pusta nawet przez chwile.
-  site:
-    name: Kopia na strone
-    needs: [guard, release]
-    if: needs.guard.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      HUB: Mysttic/Mysttic
-      PROJECT: tibia-sounds-config
-      NAME: Tibia Sounds Config
-      SITE: https://mysttic.github.io/Mysttic/tibia-sounds-config/
-      VERSION: ${{ needs.guard.outputs.version }}
-      TAG: ${{ needs.guard.outputs.tag }}
-      HUB_TAG: tibia-sounds-config-v${{ needs.guard.outputs.version }}
-    steps:
-      # Domyslny GITHUB_TOKEN siega tylko do tego repozytorium, wiec kopia wymaga
-      # osobnego tokenu. Ma date waznosci: gdy wygasnie, ten job pada z czytelnym
-      # bledem, a wydanie w tym repo zostaje na miejscu.
-      - name: Poswiadczenie do repozytorium serwisu
-        env:
-          HUB_TOKEN: ${{ secrets.HUB_TOKEN }}
-        run: |
-          set -uo pipefail
-          if [ -z "${HUB_TOKEN:-}" ]; then
-            echo "::error::Brak sekretu HUB_TOKEN. Wydanie $TAG powstalo, kopia na strone nie."
-            echo "::error::Potrzebny token osobisty z Contents: read and write na $HUB."
-            exit 1
-          fi
-
-      - name: Pliki z wydania
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p copy
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --dir copy --pattern "$PROJECT-*"
-          ls -la copy
-          if [ "$(ls -1 copy | wc -l)" -ne 3 ]; then
-            echo "::error::Spodziewam sie trzech plikow w wydaniu $TAG (setup, portable, zip)."
-            exit 1
-          fi
-
-      # Opis wydania na hubie to numer i adres strony. Pelny opis zmian zostaje
-      # w tym repozytorium, bo notatki z huba widzi tez karta aktualizacji.
-      - name: Opis wydania
-        run: |
-          set -euo pipefail
-          {
-            echo "$NAME $VERSION"
-            echo
-            echo "$SITE"
-          } > notes.md
-          cat notes.md
-
-      - name: Wydanie na stronie
-        env:
-          GH_TOKEN: ${{ secrets.HUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if gh release view "$HUB_TAG" --repo "$HUB" >/dev/null 2>&1; then
-            gh release delete "$HUB_TAG" --repo "$HUB" --cleanup-tag --yes
-          fi
-          gh release create "$HUB_TAG" copy/* \
-            --repo "$HUB" \
-            --title "$NAME $VERSION" \
-            --notes-file notes.md \
-            --target master
-
-      # Filtr `^$PROJECT-v` pilnuje, zeby kasowanie nie tknelo wydan innych projektow.
-      - name: Na stronie zostaje jedna wersja
-        env:
-          GH_TOKEN: ${{ secrets.HUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          gh release list --repo "$HUB" --limit 100 --json tagName -q '.[].tagName' \
-            | { grep -E "^$PROJECT-v" || true; } \
-            | { grep -vxF "$HUB_TAG" || true; } \
-            | while read -r old; do
-                echo "Kasuje $old"
-                gh release delete "$old" --repo "$HUB" --cleanup-tag --yes
-              done
-          echo "$HUB_TAG zostaje na stronie" >> "$GITHUB_STEP_SUMMARY"
