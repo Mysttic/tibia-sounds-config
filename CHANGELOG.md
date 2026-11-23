@@ -9,6 +9,45 @@ not exist yet.
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-23
+
+The project is no longer actively developed. This release makes updates and downloads depend
+on this repository alone, so they keep working without the shared site repository.
+
+### Changed
+
+- **The update check reads this repository again.** The app asks the GitHub Releases of
+  `Mysttic/tibia-sounds-config` and takes the newest release tagged `v<version>`, the tag the
+  release workflow creates. Drafts, prereleases and releases tagged any other way are skipped,
+  and a list with none of ours in it still means "nothing new". The request carries no token,
+  so it needs this repository to be public.
+- **Copies of 1.8.0 have to be updated by hand once.** They look for updates in the site
+  repository `Mysttic/Mysttic`, where 1.8.0 stays the last release, so they keep reporting
+  that they are up to date. Download 1.9.0 from
+  <https://github.com/Mysttic/tibia-sounds-config/releases/latest> and run the installer over
+  the old installation, or swap the portable file; replacements, backups and settings stay.
+  From 1.9.0 on, updates work from inside the app again. Copies of 1.7.0 already ask this
+  repository and find 1.9.0 on their own.
+- `README.md` points downloads at this repository's Releases, says that the project is no
+  longer actively developed, and now carries what only the project page on the site said: the
+  app needs 64-bit Windows 10 or 11, and the installer asks for no administrator password and
+  is the only build that updates itself. `SECURITY.md`, `docs/FAQ.md`, `docs/HOW_IT_WORKS.md`
+  and `docs/RELEASING.md` describe the new update source.
+
+### Removed
+
+- The copy of every release to the site repository: the `site` job in the release workflow,
+  and with it the need for a `HUB_TOKEN` secret. Releases are published only here. The copies
+  already on the site stay there, but nothing in the app or the documentation reads or links
+  them any more.
+
+### Security
+
+- The download allowlist is narrower: the installer address has to start with
+  `https://github.com/Mysttic/tibia-sounds-config/releases/download/`, meaning a file attached
+  to a release of this repository, rather than merely sit on a GitHub host. The check runs on
+  the parsed address, so `..` segments, a login or another port cannot slip past it.
+
 ## [1.8.0] - 2026-09-07
 
 ### Added
