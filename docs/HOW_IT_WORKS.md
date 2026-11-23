@@ -106,7 +106,7 @@ When that happens, the app queries:
 | `api.elevenlabs.io` | only if you enable effect generation and paste your key |
 | `openrouter.ai` | only if you enable speech generation and paste your key |
 | `api.github.com` | checking whether a newer release exists |
-| `github.com`, `objects.githubusercontent.com` | downloading the update installer |
+| `github.com` and the `*.githubusercontent.com` file server it redirects to | downloading the update installer |
 | an address you supply | a custom source or a pasted link |
 
 Safeguards on that path:
@@ -135,29 +135,33 @@ carries nothing beyond what every https server sees, and it needs neither an acc
 
 ### Where it asks, and why it matters
 
-Releases of this project are also published to the shared site repository
-[`Mysttic/Mysttic`](https://github.com/Mysttic/Mysttic), which is what
-<https://mysttic.github.io/Mysttic/tibia-sounds-config/> shows. That repository holds one
-release per project, always the newest, and the app asks it rather than this one.
+The app asks the GitHub Releases of this repository
+(`api.github.com/repos/Mysttic/tibia-sounds-config/releases`) and takes the newest entry that
+is neither a draft nor a prerelease and whose tag has the form `v<version>`, which is exactly
+what the release workflow creates. A release tagged any other way is skipped rather than taken
+for a new version, and a list with no release of ours in it means "nothing new", not an error.
+The request carries no token, so it works only while the repository is public.
 
-That repository holds releases of several projects, so the app cannot use the "latest release"
-endpoint: it answers for the whole repository and would happily return another project's
-version number as if it were ours. Instead the app fetches the release list and keeps only the
-entries whose tag starts with `tibia-sounds-config-v`. A list with no release of ours in it
-means "nothing new", not an error.
+Of the older copies, 1.7.0 already asks this repository and finds new releases on its own.
+1.8.0 asks a separate repository shared by several projects, under tags
+`tibia-sounds-config-v<version>`. Releases are no longer copied there and 1.8.0 stays the last
+one, so a 1.8.0 copy keeps reporting that it is up to date and has to be updated by hand once,
+to 1.9.0 or newer ([FAQ](FAQ.md#updates)).
 
-The full release history, with the complete changelog for every version, stays in this
-repository. That is also where the *Co sie zmienilo* button takes you.
+The full release history, with the complete changelog for every version, is in this
+repository. The *Co sie zmienilo* button opens the release page here, at an address built from
+the version number rather than taken from the response.
 
 ### What happens after you click *Pobierz i zainstaluj*
 
 1. The file address **does not come from the app window**. The main process remembers what
    it found during the last check and can download only that; the renderer has no way to
    make it fetch something from an arbitrary address.
-2. The address is also checked against a short list of hosts (`github.com`,
-   `objects.githubusercontent.com`) before anything is fetched. It arrives over the network
-   from a repository shared with other projects, so where it points is worth verifying rather
-   than assuming.
+2. Before anything is fetched, the address has to start with
+   `https://github.com/Mysttic/tibia-sounds-config/releases/download/`, meaning a file attached
+   to a release of this repository. The check runs on the parsed address, so `..` segments, a
+   login or another port cannot slip past it. Anything else ends as "this release has no
+   installer" plus a link to the release page, never as a download.
 3. The download follows the same path as any other file from the network: `https` only, a
    size limit enforced during the transfer, a timeout.
 4. The downloaded file is checked by size and by the **SHA-256 sum** that GitHub publishes

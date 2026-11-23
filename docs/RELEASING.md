@@ -57,7 +57,9 @@ After the merge:
 - the workflow creates the tag `v<version>` and a release with the artifacts
 - the release body is the `## [<version>]` section from `CHANGELOG.md` plus the standing
   disclaimer (unofficial project, cosmetic change only, modification at your own risk)
-- the `site` job copies the same three files to the shared site repository (see below)
+- installed copies find the release on their next update check. The app asks this
+  repository's releases through the GitHub API without a token, so that works only while the
+  repository is public
 
 The number from `VERSION.md` also goes into the app bar (next to the name) and into the
 window title. The file is bundled into the package, so an installed app shows exactly what
@@ -73,64 +75,20 @@ the Windows `build` job to `release` as a run artifact kept for one day only, so
 *Re-run failed jobs* finds nothing to download and the whole workflow has to be repeated,
 including the paid ~30-minute Windows build.
 
-## The copy to the site
-
-Every release is also copied to [`Mysttic/Mysttic`](https://github.com/Mysttic/Mysttic), the
-public repository behind <https://mysttic.github.io/Mysttic/>. That repository holds one
-release per project, always the newest, under a tag carrying the project prefix:
+## Tags and file names are part of the contract
 
 ```
-tibia-sounds-config-v1.7.0
-```
-
-The prefix is not decoration. Releases of several projects live in that one repository, so
-everything reading them (the project page and the updater inside the app) filters on it and
-takes the first match. The release body there is only the name, the version and the page
-address; the full changelog stays with the release in this repository.
-
-The `site` job runs after `release` and does four things in this order: it checks the
-credential, downloads the three files from the release just published here, creates the
-release on the site, and only then deletes this project's older releases there. Creating
-before deleting means the page is never empty, not even for a moment, and the `^<project>-v`
-filter keeps the deletion away from other projects.
-
-### What it needs, once
-
-The default `GITHUB_TOKEN` only reaches the repository the workflow runs in, so the copy needs
-its own credential:
-
-1. <https://github.com/settings/personal-access-tokens>, a fine-grained token.
-2. Owner `Mysttic`, access limited to the `Mysttic/Mysttic` repository.
-3. Permission **Contents: Read and write**.
-4. In this repository: *Settings, Secrets and variables, Actions, New repository secret*,
-   named `HUB_TOKEN`.
-
-The token expires. When it does, the `site` job stops with a readable error and the release in
-this repository stays exactly where it is, so nothing is lost; the copy just has to be
-repeated after the token is renewed.
-
-**This matters more than it looks**, because the app asks the site repository about versions.
-A failed copy means the site keeps the previous version, and every installed copy is told it
-is up to date while a newer release exists here. If a release goes out and the `site` job
-fails, fix the token and re-run that job.
-
-The site repository also needs a `tibia-sounds-config/` directory with its own page and one
-`initDownloads()` call matching the three file name suffixes, plus a card in the root
-`index.html`. That part lives in the other repository; the arrangement is documented in
-<https://github.com/Mysttic/Mysttic/blob/master/RELEASES.md>.
-
-### File names are part of the contract
-
-```
+v<version>
 tibia-sounds-config-<version>-win-x64-setup.exe
 tibia-sounds-config-<version>-win-x64-portable.exe
 tibia-sounds-config-<version>-win-x64.zip
 ```
 
-The project page matches files by the end of the name, and the updater inside the app builds
-the expected installer name from the version. Renaming an artifact therefore breaks the
-download buttons on the site and blinds every already-installed copy, which would then have to
-be updated by hand once. Treat these names as fixed.
+Releases are published only in this repository. The updater inside the app reads them,
+accepts only tags of the form `v<version>` and builds the expected installer name from the
+version. A release tagged differently or an artifact renamed therefore blinds every
+already-installed copy, which would then have to be updated by hand once. Treat these names
+as fixed.
 
 ## Artifacts
 
@@ -227,7 +185,5 @@ pass them from repository secrets and drop `CSC_IDENTITY_AUTO_DISCOVERY: false`.
 - [ ] `CHANGELOG.md` has a section for this version
 - [ ] `npm run pack` assembles, the app from `dist/win-unpacked` starts and loads a client
 - [ ] tested against `testclient/`, not against a working installation
-- [ ] `HUB_TOKEN` is still valid, otherwise the copy to the site fails and installed copies
-      keep being told they are up to date
-- [ ] after the release: the site shows the new number and the project's older releases are
-      gone from <https://github.com/Mysttic/Mysttic/releases>
+- [ ] the repository is public, otherwise installed copies cannot see the release, because the
+      update check asks the GitHub API without a token

@@ -3,6 +3,9 @@
 Browse and replace the Tibia client's sound files. Each of the ~844 files carries a readable
 in-game action name, so you know what you are actually changing.
 
+> **No longer actively developed.** The releases stay available in this repository and the
+> app still updates itself from them, but no further development is planned.
+
 > **The application interface is in Polish.** The documentation is in English. Polish button
 > and menu labels are quoted below so you can find them on screen.
 
@@ -33,9 +36,10 @@ library, so you can apply the same sound to another entry without hunting for th
 
 ## Installation
 
-Download from <https://mysttic.github.io/Mysttic/tibia-sounds-config/>, which always carries
-the newest version, or from [Releases](https://github.com/Mysttic/tibia-sounds-config/releases),
-which keeps the full history:
+Download the newest version from
+[Releases](https://github.com/Mysttic/tibia-sounds-config/releases/latest). Earlier versions
+stay on the [release list](https://github.com/Mysttic/tibia-sounds-config/releases) with their
+changelogs. The app needs 64-bit Windows 10 or 11.
 
 | file | for whom |
 |---|---|
@@ -43,12 +47,23 @@ which keeps the full history:
 | `...-portable.exe` | a single file, no installation, runs from a USB stick |
 | `...-win-x64.zip` | the same as portable, in an archive, when your browser makes `.exe` downloads difficult |
 
+The installer sets the app up for your own Windows account, so it never asks for an
+administrator password, and it is the only build that updates itself from inside the app.
+The portable file and the zip do not: when you check for updates, they show a link to the
+release page instead.
+
 Replacing and muting also need the free [ffmpeg](https://ffmpeg.org/download.html).
 Without it, browsing and previewing still work.
 
 Windows will show *"Windows protected your PC"*, meaning **More info** then **Run anyway**.
 The files are not signed with a publisher certificate; how to check what you downloaded is
 described in the [FAQ](docs/FAQ.md#installation).
+
+**Updating from 1.8.0.** That version looks for updates in a place that no longer receives
+releases, so it keeps reporting that it is up to date. Install 1.9.0 or newer once by hand:
+run the new `...-setup.exe` over the old installation, or swap the portable file. Your
+replacements, the backups of the originals and your settings stay where they are. From
+1.9.0 on, *Sprawdz aktualizacje* finds new releases again.
 
 ## How to use it
 

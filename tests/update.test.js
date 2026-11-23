@@ -2,11 +2,13 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   compareVersions, parseVersion, versionFromTag, installerNameFor, parseDigest,
   allowedDownload, pickAsset, pickLatest, fetchLatestRelease,
-  RELEASES_API, RELEASES_PAGE, TAG_PREFIX, HUB,
+  REPO, RELEASES_API, RELEASES_PAGE, TAG_PREFIX, DOWNLOAD_PREFIX,
 } = require('../electron/lib/update');
 
 /**
@@ -14,9 +16,13 @@ const {
  * decyzyjna jest wydzielona i testowana z podstawionym `fetchJson`. Zaden test
  * ponizej nie wychodzi do sieci.
  *
- * Wydania wszystkich projektow leza w jednym repozytorium, wiec wiekszosc tych
- * testow pilnuje jednej rzeczy: ze nie wezmiemy cudzego wydania za swoje.
+ * Wydania leza w tym repozytorium pod tagami `v<wersja>`. Wiekszosc tych testow
+ * pilnuje dwoch rzeczy: ze za nasze wydanie uchodzi tylko taki tag i ze instalator
+ * da sie pobrac wylacznie z plikow wydan tego repozytorium.
  */
+
+const POBIERANIE = 'https://github.com/Mysttic/tibia-sounds-config/releases/download/';
+const STRONA = 'https://github.com/Mysttic/tibia-sounds-config/releases/tag/';
 
 function stub(odpowiedz) {
   const calls = [];
@@ -28,18 +34,19 @@ function stub(odpowiedz) {
   return { fetchJson, calls };
 }
 
-/** Wpis z listy wydan huba, przyciety do pol, ktorych uzywamy. */
+/** Wpis z listy wydan tego repozytorium, przyciety do pol, ktorych uzywamy. */
 function wydanie(tag, { assets, wersjaPliku, ...reszta } = {}) {
   const v = versionFromTag(tag) || '0.0.0';
+  const nazwa = installerNameFor(wersjaPliku || v);
   return {
     tag_name: tag,
     draft: false,
     prerelease: false,
     published_at: '2026-09-06T10:00:00Z',
-    html_url: `https://github.com/${HUB}/releases/tag/${tag}`,
+    html_url: `${STRONA}${tag}`,
     assets: assets ?? [{
-      name: installerNameFor(wersjaPliku || v),
-      browser_download_url: `https://github.com/${HUB}/releases/download/${tag}/setup.exe`,
+      name: nazwa,
+      browser_download_url: `${POBIERANIE}${tag}/${nazwa}`,
       size: 81_748_326,
       digest: 'sha256:f8b1ab962ae93ba4052dafff67f3ca09e1dab7690b5ab7d7cea4a6d0c965813b',
     }],
@@ -63,13 +70,20 @@ test('compareVersions porownuje liczbowo, nie tekstowo', () => {
   assert.equal(compareVersions('1.7.0', 'v1.7.0'), 0);
 });
 
-test('versionFromTag przyjmuje tylko tagi z naszym prefiksem', () => {
-  assert.equal(versionFromTag('tibia-sounds-config-v1.7.0'), '1.7.0');
+test('versionFromTag przyjmuje tylko tagi v<wersja>', () => {
+  assert.equal(TAG_PREFIX, 'v');
+  assert.equal(versionFromTag('v1.9.0'), '1.9.0');
+  assert.equal(versionFromTag('v1.10.2'), '1.10.2');
+  assert.equal(versionFromTag('v2.0.0-rc.1'), '2.0.0-rc.1');
+  // Tagi z czasow huba i tagi innych projektow to nie nasze wydania.
+  assert.equal(versionFromTag('tibia-sounds-config-v1.8.0'), null);
   assert.equal(versionFromTag('chatt-v0.6.2'), null);
-  assert.equal(versionFromTag('v1.7.0'), null);
-  assert.equal(versionFromTag('tibia-sounds-config-v'), null);
+  // Samo `v` z przodu nie wystarczy, za nim musi stac caly numer.
+  assert.equal(versionFromTag('v'), null);
+  assert.equal(versionFromTag('vbzdura'), null);
+  assert.equal(versionFromTag('v1.9'), null);
+  assert.equal(versionFromTag('1.9.0'), null);
   assert.equal(versionFromTag(undefined), null);
-  assert.ok(TAG_PREFIX.endsWith('-v'));
 });
 
 test('parseDigest przyjmuje tylko poprawne sha256', () => {
@@ -80,119 +94,186 @@ test('parseDigest przyjmuje tylko poprawne sha256', () => {
   assert.equal(parseDigest('sha256:krotkie'), null);
 });
 
-test('allowedDownload przepuszcza wylacznie https na hostach GitHuba', () => {
-  assert.ok(allowedDownload('https://github.com/Mysttic/Mysttic/releases/download/x/y.exe'));
-  assert.ok(allowedDownload('https://objects.githubusercontent.com/a/b.exe'));
-  assert.equal(allowedDownload('http://github.com/a.exe'), false);
-  assert.equal(allowedDownload('https://github.com.evil.example/a.exe'), false);
-  assert.equal(allowedDownload('https://evil.example/a.exe'), false);
-  assert.equal(allowedDownload('nie-adres'), false);
+test('allowedDownload przepuszcza wylacznie pliki wydan tego repozytorium', () => {
+  assert.ok(allowedDownload(`${POBIERANIE}v1.9.0/s.exe`));
+  // Hub, serwer plikow GitHuba, inne repozytorium i reszta github.com juz nie.
+  for (const url of [
+    'https://github.com/Mysttic/Mysttic/releases/download/tibia-sounds-config-v1.8.0/s.exe',
+    'https://objects.githubusercontent.com/a/b.exe',
+    'https://github.com/Mysttic/tibia-sounds-config-fork/releases/download/v1.9.0/s.exe',
+    'https://github.com/Mysttic/tibia-sounds-config/archive/refs/tags/v1.9.0.zip',
+    'http://github.com/Mysttic/tibia-sounds-config/releases/download/v1.9.0/s.exe',
+    'https://github.com.evil.example/Mysttic/tibia-sounds-config/releases/download/v1/s.exe',
+    'https://evil.example/a.exe',
+    'nie-adres',
+    undefined,
+  ]) {
+    assert.equal(allowedDownload(url), false, String(url));
+  }
 });
 
-test('pickAsset dopasowuje po dokladnej nazwie i odrzuca obcy host', () => {
+test('allowedDownload porownuje adres po rozebraniu, a nie tekst', () => {
+  for (const url of [
+    // Tekstowo zaczynaja sie od dozwolonego adresu, ale `..` wyprowadza je
+    // z katalogu wydan, takze zapisane jako %2e%2e.
+    `${POBIERANIE}../../../Mysttic/releases/download/v1/s.exe`,
+    `${POBIERANIE}%2e%2e/%2E%2E/%2e%2e/Mysttic/releases/download/v1/s.exe`,
+    // Login i inny port zmieniaja poczatek adresu.
+    'https://evil@github.com/Mysttic/tibia-sounds-config/releases/download/v1.9.0/s.exe',
+    'https://github.com:8443/Mysttic/tibia-sounds-config/releases/download/v1.9.0/s.exe',
+  ]) {
+    assert.equal(allowedDownload(url), false, url);
+  }
+  // Wielkie litery w hoscie i domyslny port to wciaz ten sam adres.
+  assert.ok(allowedDownload('https://GitHub.com:443/Mysttic/tibia-sounds-config/releases/download/v1.9.0/s.exe'));
+});
+
+test('pickAsset dopasowuje po dokladnej nazwie i odrzuca adres spoza wydan repozytorium', () => {
   const dobry = {
-    name: installerNameFor('1.8.0'),
-    browser_download_url: 'https://github.com/Mysttic/Mysttic/releases/download/t/s.exe',
+    name: installerNameFor('1.9.0'),
+    browser_download_url: `${POBIERANIE}v1.9.0/s.exe`,
     size: 7, digest: null,
   };
-  assert.equal(pickAsset([dobry], installerNameFor('1.8.0')).size, 7);
+  assert.equal(pickAsset([dobry], installerNameFor('1.9.0')).size, 7);
   assert.equal(pickAsset([dobry], 'czegos-takiego-nie-ma.exe'), null);
 
-  // Adres przychodzi z sieci, wiec podmieniony host ma skonczyc sie odmowa,
-  // a nie pobraniem czegokolwiek.
-  const obcy = { ...dobry, browser_download_url: 'https://evil.example/s.exe' };
-  assert.equal(pickAsset([obcy], installerNameFor('1.8.0')), null);
+  // Adres przychodzi z sieci, wiec obcy host albo inne repozytorium maja
+  // skonczyc sie odmowa, a nie pobraniem czegokolwiek.
+  for (const url of [
+    'https://evil.example/s.exe',
+    'https://github.com/Mysttic/Mysttic/releases/download/tibia-sounds-config-v1.9.0/s.exe',
+  ]) {
+    assert.equal(pickAsset([{ ...dobry, browser_download_url: url }], installerNameFor('1.9.0')), null, url);
+  }
 });
 
-test('pickLatest pomija cudze projekty, szkice i wydania kandydujace', () => {
+test('pickLatest pomija tagi spoza ukladu v<wersja>, szkice i wydania kandydujace', () => {
   const lista = [
-    wydanie('chatt-v9.9.9'),
-    { tag_name: 'tibia-sounds-config-v2.0.0', draft: true },
-    { tag_name: 'tibia-sounds-config-v1.9.0', prerelease: true },
-    wydanie('tibia-sounds-config-v1.8.0'),
-    wydanie('tibia-sounds-config-v1.7.0'),
+    wydanie('tibia-sounds-config-v9.9.9'),
+    wydanie('nightly'),
+    { tag_name: 'v2.0.0', draft: true },
+    { tag_name: 'v1.10.0', prerelease: true },
+    wydanie('v1.9.0'),
+    wydanie('v1.8.0'),
   ];
-  assert.equal(pickLatest(lista).version, '1.8.0');
-  assert.equal(pickLatest([wydanie('chatt-v9.9.9')]), null);
+  assert.equal(pickLatest(lista).version, '1.9.0');
+  assert.equal(pickLatest([wydanie('tibia-sounds-config-v9.9.9')]), null);
   assert.equal(pickLatest([]), null);
   assert.equal(pickLatest(undefined), null);
 });
 
 test('nowsze wydanie zwraca komplet danych do pobrania', async () => {
-  const { fetchJson, calls } = stub([wydanie('tibia-sounds-config-v1.8.0')]);
-  const wynik = await fetchLatestRelease({ currentVersion: '1.7.0', fetchJson, platform: 'win32' });
+  const { fetchJson, calls } = stub([wydanie('v1.9.0')]);
+  const wynik = await fetchLatestRelease({ currentVersion: '1.8.0', fetchJson, platform: 'win32' });
 
   assert.equal(wynik.status, 'newer');
-  assert.equal(wynik.release.version, '1.8.0');
-  assert.equal(wynik.release.asset.name, 'tibia-sounds-config-1.8.0-win-x64-setup.exe');
+  assert.equal(wynik.release.version, '1.9.0');
+  assert.equal(wynik.release.asset.name, 'tibia-sounds-config-1.9.0-win-x64-setup.exe');
+  assert.equal(wynik.release.asset.url, `${POBIERANIE}v1.9.0/tibia-sounds-config-1.9.0-win-x64-setup.exe`);
   assert.equal(wynik.release.asset.sha256.length, 64);
-  assert.equal(calls[0].url, RELEASES_API);
-  // /releases/latest oddaloby wydanie cudzego projektu, wiec pytamy o liste.
-  assert.ok(calls[0].url.includes('/releases?per_page='));
+  // Pytamy o liste wydan tego repozytorium, nie o hub.
+  assert.equal(calls[0].url,
+    'https://api.github.com/repos/Mysttic/tibia-sounds-config/releases?per_page=30');
   assert.equal(calls[0].opts.headers['X-GitHub-Api-Version'], '2022-11-28');
+  // Bez tokenu: repozytorium jest publiczne, a aplikacja nie ma sie czym logowac.
+  assert.equal(calls[0].opts.headers.Authorization, undefined);
 });
 
-test('odsylacz "co sie zmienilo" wskazuje nasze repo, nie hub', async () => {
+test('odsylacz "co sie zmienilo" jest skladany z numeru wersji, nie z odpowiedzi', async () => {
   // Adres skladamy z numeru wersji, a nie z pola w odpowiedzi, wiec nawet
   // podmienione `html_url` nie przestawi go na obca strone.
-  const podmienione = wydanie('tibia-sounds-config-v1.8.0', { html_url: 'https://evil.example/x' });
+  const podmienione = wydanie('v1.9.0', { html_url: 'https://evil.example/x' });
   const { fetchJson } = stub([podmienione]);
-  const wynik = await fetchLatestRelease({ currentVersion: '1.7.0', fetchJson, platform: 'win32' });
-  assert.equal(wynik.release.pageUrl, 'https://github.com/Mysttic/tibia-sounds-config/releases/tag/v1.8.0');
+  const wynik = await fetchLatestRelease({ currentVersion: '1.8.0', fetchJson, platform: 'win32' });
+  assert.equal(wynik.release.pageUrl, `${STRONA}v1.9.0`);
 });
 
-test('cudze wydanie nad naszym nie jest brane za nasze', async () => {
-  // Hub trzyma wydania kilku projektow, a Chatt wydaje czesciej. Jego 9.9.9
-  // stoi na liscie wyzej i przed poprawka wygladalo jak nasza nowa wersja.
-  const { fetchJson } = stub([wydanie('chatt-v9.9.9'), wydanie('tibia-sounds-config-v1.7.0')]);
-  const wynik = await fetchLatestRelease({ currentVersion: '1.7.0', fetchJson, platform: 'win32' });
+test('tag w innym ukladzie nad naszym nie jest brany za nowsza wersje', async () => {
+  // Tag w ukladzie huba albo bez numeru stoi na liscie wyzej, ale to nie jest
+  // nasze wydanie i nie moze udawac nowszej wersji.
+  const { fetchJson } = stub([
+    wydanie('tibia-sounds-config-v9.9.9'), wydanie('nightly'), wydanie('v1.8.0'),
+  ]);
+  const wynik = await fetchLatestRelease({ currentVersion: '1.8.0', fetchJson, platform: 'win32' });
   assert.equal(wynik.status, 'current');
 });
 
 test('lista bez naszego wydania to "nic nowego", a nie blad', async () => {
-  const { fetchJson } = stub([wydanie('chatt-v0.6.2')]);
-  const wynik = await fetchLatestRelease({ currentVersion: '1.7.0', fetchJson, platform: 'win32' });
-  assert.equal(wynik.status, 'current');
+  for (const lista of [[], [wydanie('tibia-sounds-config-v1.9.0')]]) {
+    const { fetchJson } = stub(lista);
+    const wynik = await fetchLatestRelease({ currentVersion: '1.8.0', fetchJson, platform: 'win32' });
+    assert.equal(wynik.status, 'current', `dla ${JSON.stringify(lista.map((r) => r.tag_name))}`);
+  }
 });
 
 test('ta sama i starsza wersja to "current", nie "newer"', async () => {
-  for (const zdalna of ['1.7.0', '1.6.1', '0.9.9']) {
-    const { fetchJson } = stub([wydanie(`tibia-sounds-config-v${zdalna}`)]);
-    const wynik = await fetchLatestRelease({ currentVersion: '1.7.0', fetchJson, platform: 'win32' });
+  for (const zdalna of ['1.9.0', '1.8.0', '0.9.9']) {
+    const { fetchJson } = stub([wydanie(`v${zdalna}`)]);
+    const wynik = await fetchLatestRelease({ currentVersion: '1.9.0', fetchJson, platform: 'win32' });
     assert.equal(wynik.status, 'current', `dla zdalnej ${zdalna}`);
   }
 });
 
-test('nowsze wydanie bez instalatora nadal jest zglaszane, ale bez assetu', async () => {
-  const { fetchJson } = stub([wydanie('tibia-sounds-config-v1.8.0', { assets: [] })]);
-  const wynik = await fetchLatestRelease({ currentVersion: '1.7.0', fetchJson, platform: 'win32' });
-  assert.equal(wynik.status, 'newer');
-  assert.equal(wynik.release.asset, null);
+test('nowsze wydanie bez instalatora z tego repozytorium jest zglaszane bez assetu', async () => {
+  const zHuba = {
+    name: installerNameFor('1.9.0'),
+    browser_download_url: 'https://github.com/Mysttic/Mysttic/releases/download/tibia-sounds-config-v1.9.0/s.exe',
+    size: 7,
+  };
+  for (const assets of [[], [zHuba]]) {
+    const { fetchJson } = stub([wydanie('v1.9.0', { assets })]);
+    const wynik = await fetchLatestRelease({ currentVersion: '1.8.0', fetchJson, platform: 'win32' });
+    assert.equal(wynik.status, 'newer');
+    assert.equal(wynik.release.asset, null);
+    // Zostaje odeslanie na strone wydania.
+    assert.equal(wynik.release.pageUrl, `${STRONA}v1.9.0`);
+  }
 });
 
 test('blad sieci konczy sie "failed" z powodem, a nie wyjatkiem', async () => {
   const { fetchJson } = stub(() => { throw new Error('przekroczono limit 10000 ms'); });
-  const wynik = await fetchLatestRelease({ currentVersion: '1.7.0', fetchJson, platform: 'win32' });
+  const wynik = await fetchLatestRelease({ currentVersion: '1.8.0', fetchJson, platform: 'win32' });
   assert.equal(wynik.status, 'failed');
   assert.match(wynik.error, /limit/);
 });
 
 test('odpowiedz, ktora nie jest lista, nie przechodzi jako aktualizacja', async () => {
-  for (const smiec of [null, 'tekst', 42, {}, { tag_name: 'tibia-sounds-config-v9.9.9' }]) {
+  for (const smiec of [null, 'tekst', 42, {}, { tag_name: 'v9.9.9' }]) {
     const { fetchJson } = stub(smiec);
-    const wynik = await fetchLatestRelease({ currentVersion: '1.7.0', fetchJson, platform: 'win32' });
+    const wynik = await fetchLatestRelease({ currentVersion: '1.8.0', fetchJson, platform: 'win32' });
     assert.equal(wynik.status, 'failed', `dla ${JSON.stringify(smiec)}`);
   }
 });
 
 test('poza Windowsem nie pytamy GitHuba w ogole', async () => {
-  const { fetchJson, calls } = stub([wydanie('tibia-sounds-config-v9.9.9')]);
-  const wynik = await fetchLatestRelease({ currentVersion: '1.7.0', fetchJson, platform: 'linux' });
+  const { fetchJson, calls } = stub([wydanie('v9.9.9')]);
+  const wynik = await fetchLatestRelease({ currentVersion: '1.8.0', fetchJson, platform: 'linux' });
   assert.equal(wynik.status, 'failed');
   assert.equal(calls.length, 0);
 });
 
-test('adresy sa przybite do https i do znanych repozytoriow', () => {
-  assert.ok(RELEASES_API.startsWith('https://api.github.com/repos/Mysttic/Mysttic/'));
-  assert.ok(RELEASES_PAGE.startsWith('https://github.com/Mysttic/tibia-sounds-config/'));
+test('adresy sa przybite do https i do tego repozytorium', () => {
+  assert.equal(REPO, 'Mysttic/tibia-sounds-config');
+  assert.ok(RELEASES_API.startsWith('https://api.github.com/repos/Mysttic/tibia-sounds-config/'));
+  assert.equal(RELEASES_PAGE, 'https://github.com/Mysttic/tibia-sounds-config/releases');
+  assert.equal(DOWNLOAD_PREFIX, POBIERANIE);
+});
+
+test('aplikacja nie odwoluje sie juz do huba ani do jego strony', () => {
+  // Hub nie dostaje juz wydan, a strona projektu na nim znika, wiec nic w kodzie
+  // aplikacji nie moze od nich zalezec.
+  const root = path.join(__dirname, '..');
+  const pliki = [];
+  for (const dir of ['electron', 'renderer']) {
+    for (const wpis of fs.readdirSync(path.join(root, dir), { recursive: true })) {
+      if (/\.(js|html|css)$/.test(wpis)) pliki.push(path.join(root, dir, wpis));
+    }
+  }
+  assert.ok(pliki.length > 10, `za malo plikow: ${pliki.length}`);
+  for (const plik of pliki) {
+    const tresc = fs.readFileSync(plik, 'utf8');
+    for (const zakazane of ['Mysttic/Mysttic', 'mysttic.github.io']) {
+      assert.ok(!tresc.includes(zakazane), `${path.relative(root, plik)} zawiera ${zakazane}`);
+    }
+  }
 });
